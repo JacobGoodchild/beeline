@@ -189,22 +189,31 @@ Keep a **Progress log** section at the bottom of this file: what's done, what's 
 
 ### Summary for Jacob
 **What works (tested here in the cloud, without Roblox):**
-- The whole loop: walk to Pine Tree, place the Saturator once, gather in loops while swinging, walk home when the bag is full, press E once, wait for the bag **and** the hive balloon, walk back, repeat, and stop on time after a final convert.
-- All the safety rules: only allowed keys, key 2 only once and only in the field, the mouse only inside the safe box, STOP/F3 lets go of everything, and it stops itself whenever something looks wrong.
-- The Beeline window: settings, Start/Stop, live picture, the Setup tab for teaching it your screen and recording routes, and the log.
-- The real program, sending real key presses, was run against a pretend game many times (including clicking through the whole Setup tab automatically). 100+ automatic tests pass, on the same Python version Linux Mint 21.3 uses.
+- The whole loop: walk to Pine Tree, place the Saturator once, gather in loops while swinging, walk home when the bag is full, press E once (only when the banner says **Make Honey**), wait until the pollen reads 0 **and** the banner says "Collect Pollen", walk back, repeat, and stop on time after a final convert.
+- **It reads the real game layout from your screenshots**, so there's almost nothing to calibrate:
+  - pollen numbers (current ÷ capacity, so capacity changes don't matter), checked against the bar
+  - the banner text (Make Honey / Fire the Red Cannon / Collect Pollen)
+  - the "(from Pine Tree Forest)" notifications
+  - the blue-and-white field
+  - your neon-cyan Saturator
+  
+  It ignores neighbours' balloons and never presses E at the cannon. Tested on your 5 screenshots: bag within ±3% on all of them, every banner read correctly, the Saturator found only in the Pine Tree shots.
+- All the safety rules: only allowed keys, key 2 once and only in the field, mouse only in the middle (never the menus, hotbar or notifications), STOP/F3 lets go of everything, and it stops itself whenever something looks wrong.
+- The practice game (`python3 beeline.py --practice`) now looks like your screenshots, and the real program was run against it end to end with real text reading. 110 automatic tests pass, on the same Python version Mint 21.3 uses.
 
 **What's untested (because I can't run Roblox):**
-- Sober inside the hidden screen on your PC, and whether its window is found and fitted correctly.
-- How well the screen readings work on the real game (bag bar, E prompt, balloon, Saturator, field ground). The Setup tab's "Test it" buttons are there so you can check each one.
-- Exact walking in the real game. The safety checks will stop it if a route doesn't arrive.
+- Sober inside the hidden screen on your PC, and whether the window is found and fitted.
+- The readings on your PC at 1920×1080. They should match the screenshots, but use the **Test it** buttons (or `--check` on a screenshot) to confirm.
+- Exact walking in the real game. Arrival checks will stop it if a route doesn't arrive.
+- Screenshot 06 (after converting) wasn't attached. Please add it as `screenshots/06-hive-after-convert.png`.
 
 **What to do first:**
-1. Follow **START-HERE.md** Part 1 (install, about 5 minutes).
-2. Part 2 steps 1-8 (open the hidden screen and Sober, join Bee Swarm, claim a hive).
-3. Part 3 (Setup tab: calibrate and record both routes). Use "Test everything at once" to check.
-4. Part 4: a **dry run** first, then a 5-minute run while you watch, with your finger near F3.
-5. If anything stops it or looks odd, send Claude `logs/beeline.log` and the newest picture in `logs/stops/`.
+1. Follow **START-HERE.md** Part 1 (install, about 5 minutes; this now includes `tesseract-ocr`).
+2. Optional but recommended: Step 5, practise with `python3 beeline.py --practice`.
+3. Part 2 (open the hidden screen and Sober, join, claim a hive, shift lock on).
+4. Part 3: press **Test it** on each Setup step, then record both routes.
+5. Part 4: a **dry run**, then a 5-minute run while you watch, with your finger near F3.
+6. If anything stops it or looks odd, send Claude `logs/beeline.log`, the newest picture in `logs/stops/`, and the output of `python3 beeline.py --check` on a screenshot.
 
 ### Session notes
 - Scheduling tool available (`send_later`). Wake-ups set: +45 min rolling, plus 16:30, 17:15, 18:00, 18:30 UK.
