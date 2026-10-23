@@ -55,7 +55,7 @@ class Stats:
 class Runner:
     def __init__(self, settings: Settings, cal: Calibration, inp: SafeInput, screen,
                  routes: dict, clock: Clock | None = None, status=None,
-                 stops_dir: str | None = None) -> None:
+                 stops_dir: str | None = None, window_alive=None) -> None:
         self.s = settings
         self.cal = cal
         self.inp = inp
@@ -64,6 +64,8 @@ class Runner:
         self.clock = clock or inp.clock
         self.status_cb = status
         self.stops_dir = stops_dir or os.path.join(LOGS_DIR, "stops")
+        self.window_alive = window_alive  # optional callable: is the game window still there?
+        self._last_window_check = -1e9
         self.senses = Senses(cal, settings.field)
         self.guard = SprinklerGuard(inp, allow_retry=settings.allow_sprinkler_retry)
         self.stats = Stats()
@@ -121,6 +123,10 @@ class Runner:
         if now > self.deadline + FINAL_GRACE:
             raise StopMacro("Stopped: ran %d minutes past the time limit (final trip took too long)"
                             % (FINAL_GRACE // 60))
+        if self.window_alive is not None and now - self._last_window_check >= 10:
+            self._last_window_check = now
+            if not self.window_alive():
+                raise StopMacro("Stopped: the game window disappeared (Sober closed or crashed?)")
         thumb = vision.thumbnail(img)
         if self._last_thumb is None or vision.frame_change(self._last_thumb, thumb) > 0.02:
             self._last_change = now

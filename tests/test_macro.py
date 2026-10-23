@@ -218,6 +218,12 @@ class StopConditionTests(unittest.TestCase):
         self.assertTrue(sim.world.on_pad(), "stayed on the hive pad")
         self.assertEqual(sim.world.left_mid_convert, 0)
 
+    def test_game_window_disappearing_stops(self):
+        sim = Sim(minutes=30)
+        sim.runner.window_alive = lambda: sim.world.t < 120
+        reason = sim.run()
+        self.assertStopped(sim, reason, "game window disappeared")
+
     def test_converting_not_starting_stops(self):
         sim = Sim(minutes=30)
         sim.world.convert_rate = 0.0
