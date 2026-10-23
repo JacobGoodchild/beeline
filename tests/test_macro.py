@@ -312,6 +312,14 @@ class RealGameRuleTests(unittest.TestCase):
         self.assertTrue(reason.startswith("Finished"), reason)
         self.assertEqual(sim.world.sprinkler_presses, 1, "the flash didn't stop it placing the real one")
 
+    def test_only_one_place_presses_e_and_it_checks_the_banner_first(self):
+        import inspect
+        from beeline import macro
+        src = inspect.getsource(macro)
+        self.assertEqual(src.count('tap("e")'), 1)
+        convert = inspect.getsource(macro.Runner.convert)
+        self.assertLess(convert.index('banner != "make_honey"'), convert.index('tap("e")'))
+
     def test_no_ocr_stops_before_pressing_anything(self):
         sim = Sim(minutes=30)
         sim.runner.senses.reader.use_ocr = False

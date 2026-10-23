@@ -282,3 +282,10 @@ To do: remake the practice game to look like these; tests on the real screenshot
 - [x] The Setup picture now outlines the read areas (pollen, banner, feed), the no-click areas in red, and the green click zone. Checked against the real screenshots: they line up.
 - Not done: reading "Popcat989" off the hive sign. Pale yellow text on a yellow sign comes out as "PORRIBS" in OCR, so it's unreliable. The hive check is the "Make Honey" banner plus routes recorded per hive slot.
 - Re-ran both end-to-end tests with **real Tesseract** at 1920×1080 on the new practice game. Fake game: 4 trips, all counters correct. GUI test: banner/bag/Saturator/field tests read correctly, dry run, real run, Stop and F3 all pass.
+
+### Safety audit, second pass (after Interrupt 1)
+- Rule 1/2: the new code (`bss.py`, `senses.py`, `check.py`, `synth_bss.py`, `keywatch.py`) only reads screenshots or keyboard state. Tesseract runs on screenshot crops; nothing touches the game. The source-scan test still passes. ✅
+- Rule 3: the balloon wait now uses pollen 0 + "Collect Pollen" banner/feed message (twice in a row), never "a balloon is on screen". Timeout = stop at the hive. ✅
+- Rule 4: E is pressed in exactly one place (`Runner.convert`), and only right after the banner reads "Make Honey". A route's E only goes through if the banner says "Fire the Red Cannon" at that moment. Both are tested, plus a test that fails if another E press is ever added. Key 2 is unchanged. ✅
+- Rule 5: the safe zone (default and the biggest allowed) is tested against the no-click areas measured on the real screenshots. ✅
+- Rule 6: new stops: Tesseract missing, banner not "Make Honey" at the hive, wrong field named in the feed, numbers vs bar disagreeing badly 3 times in a row, Saturator only "seen" for one frame doesn't count. ✅
