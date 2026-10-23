@@ -44,6 +44,11 @@ class HappyPathTests(unittest.TestCase):
         self.assertTrue(names <= set(ALLOWED_KEYS) | {"2"}, names)
         self.assertEqual(sum(1 for (_, n) in sim.world.keys_log if n == "2"), 1)
 
+    def test_zooms_out_first(self):
+        sim = Sim(minutes=5)
+        sim.run()
+        self.assertEqual(sim.world.keys_log[0][1], "o")
+
     def test_saturator_placed_in_middle_of_field(self):
         sim = Sim(minutes=5)
         sim.run()

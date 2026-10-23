@@ -83,7 +83,7 @@ Do these yourself in the game (Beeline never opens menus):
 4. Click **Fit game to hidden screen** so the game fills the window exactly.
 5. In the game: **claim a hive** (follow the red arrow, press E). Note which slot it is: **slot 1 is the hive nearest the cannon, slot 6 the furthest**.
 6. In Beeline, set **My hive slot** to that number.
-7. In the game: **zoom the camera fully out** (scroll the mouse wheel, or hold **O**). Press **Shift** once to turn **shift lock on**.
+7. In the game: **zoom the camera fully out** (scroll the mouse wheel, or hold **O**). Press **Shift** once to turn **shift lock on**. (Beeline also holds O for 2 seconds when it starts, just to be sure. Do your Setup samples fully zoomed out too.)
 8. Stand on your **hive pad** so the "E Make Honey" prompt shows.
 9. Click **Hide window** (or just leave the hidden screen window alone; see the warning below).
 10. Choose how long to run for, untick **Dry run** if you want it to play for real, and press **START**.

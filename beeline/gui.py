@@ -133,6 +133,7 @@ class App(tk.Tk):
         self.v_dry = tk.BooleanVar(value=self.settings.dry_run)
         self.v_retry = tk.BooleanVar(value=self.settings.allow_sprinkler_retry)
         self.v_drift = tk.BooleanVar(value=self.settings.drift_compensation)
+        self.v_zoom = tk.BooleanVar(value=self.settings.zoom_out_at_start)
 
         def row(label):
             r = ttk.Frame(box)
@@ -162,6 +163,8 @@ class App(tk.Tk):
                     command=self.refresh_setup_status).pack(side="left")
         ttk.Checkbutton(box, text="Drift compensation (steer back towards the Saturator)",
                         variable=self.v_drift).pack(anchor="w")
+        ttk.Checkbutton(box, text="Zoom the camera fully out at the start (holds O for 2 seconds)",
+                        variable=self.v_zoom).pack(anchor="w")
         ttk.Checkbutton(box, text="Allow ONE retry if placing the Saturator visibly fails",
                         variable=self.v_retry).pack(anchor="w")
         ttk.Checkbutton(box, text="Dry run (practice: presses NOTHING, shows what it would press)",
@@ -297,6 +300,7 @@ class App(tk.Tk):
         s.dry_run = bool(self.v_dry.get())
         s.allow_sprinkler_retry = bool(self.v_retry.get())
         s.drift_compensation = bool(self.v_drift.get())
+        s.zoom_out_at_start = bool(self.v_zoom.get())
         s.validate()
         s.save()
         return s

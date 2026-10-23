@@ -259,6 +259,10 @@ class Runner:
     def _run(self) -> None:
         self.status("Checking everything is ready")
         self.preflight()
+        if self.s.zoom_out_at_start:
+            # Calibration was done fully zoomed out; make sure the camera matches.
+            self.status("Zooming the camera fully out")
+            self.inp.hold("o", 2.0)
         img = self.look()
         if self.bag(img) > 10:
             self.status("Converting what's already in the bag first")

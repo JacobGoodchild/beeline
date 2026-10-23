@@ -43,6 +43,7 @@ class Settings:
     allow_sprinkler_retry: bool = False
     max_trip_minutes: float = 15.0    # backstop: walk home after this long gathering even if bag reads low
     drift_compensation: bool = True
+    zoom_out_at_start: bool = True    # hold O for 2 s at the start so the view matches calibration
     display: str = ":5"
     screen_mode: str = "xephyr"       # "xephyr" (visible window) or "xvfb" (fully hidden)
     xephyr_glamor: bool = False       # use the graphics card inside Xephyr (faster, may not work everywhere)
