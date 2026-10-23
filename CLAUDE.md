@@ -248,7 +248,7 @@ Keep a **Progress log** section at the bottom of this file: what's done, what's 
 10. **No secrets.** Nothing logs in, rejoins or stores credentials. The settings file holds only the options and the hive slot. ✅
 11. **No chat, no cloud.** `/` and Enter are blocked. There's no `.github` folder or workflows. The macro only runs on Jacob's PC. ✅
 - Extra guard added in the audit: input and the hidden screen are refused on display `:0` **and** on whatever display Beeline was opened on (some PCs use `:1` for the desktop).
-- [ ] 12. Polish and extra tests (in progress):
+- [x] 12. Polish and extra tests:
   - Tested on **Python 3.10 + Pillow 9.0.1** (the versions Mint 21.3 ships) as well as 3.12: all tests pass.
   - Routes can now be recorded by walking **directly in the hidden screen window** (`beeline/keywatch.py` watches which allowlisted keys are down on the hidden screen; it only reads, never sends). The preview runs at 10 fps while recording.
   - Sober window detection falls back to the biggest visible window on the hidden screen if its title isn't what we expect.
@@ -300,3 +300,8 @@ To do: remake the practice game to look like these; tests on the real screenshot
 - Rule 6: new stops: Tesseract missing, banner not "Make Honey" at the hive, wrong field named in the feed, numbers vs bar disagreeing badly 3 times in a row, Saturator only "seen" for one frame doesn't count. ✅
 - Screenshots confirm the Sober window title is "Sober", which `find_game_window()` searches for first.
 - [x] **Interface size** setting (`Calibration.ui_scale`, a slider on the Setup tab with live overlay). Roblox may draw its UI larger relative to a 1920×1080 window than in Jacob's bigger screenshots. Without it, a 25% bigger UI made the bar read 96% instead of 73%. Read areas scale from the top centre (the feed from the bottom right). Tested by enlarging the real screenshots' top bars 1.25× and reading them correctly with `ui_scale=1.25`. Automatic detection was tried but the bar frames are see-through (their colour changes with the background), so it's a manual slider for now.
+
+### Session end
+- Jacob moved the finish time to **17:50 UK** (usage limit approaching). All wake-ups were cancelled at ~17:20 UK, so nothing restarts this session.
+- Final state: 110 tests pass (Python 3.12 and 3.10 + Pillow 9.0.1). Both end-to-end tests (real xdotool + real Tesseract against the practice game, plus driving the GUI) passed on the final logic. The OCR now reads the pollen numbers exactly on all 5 real screenshots.
+- Next session ideas: add screenshot 06 and check its tests pass; try the Interface size slider on Jacob's PC; automatic interface-size detection; feedback from the first real dry run and the 5-minute run.
