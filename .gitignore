@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+settings.json
+calibration/
+logs/
+!logs/.keep
+routes/*.json
