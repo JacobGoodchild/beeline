@@ -205,7 +205,9 @@ class App(tk.Tk):
         right = ttk.Frame(f)
         right.pack(side="left", fill="both", expand=True, padx=(12, 0))
 
-        self.setup_help = tk.StringVar(value="Pick a step on the right. The picture below is the hidden screen.")
+        self.setup_help = tk.StringVar(value="The picture is the hidden screen. Green box = where the mouse may click. "
+                                         "Red boxes = never clicked. Pink, yellow and orange = where Beeline reads the "
+                                         "pollen, the banner and the notifications. Pick a step on the right.")
         ttk.Label(left, textvariable=self.setup_help, font=MED, wraplength=640, foreground="#1a4f8b"
                   ).pack(anchor="w")
         self.setup_canvas = tk.Canvas(left, width=int(W * SETUP_SCALE), height=int(H * SETUP_SCALE),
@@ -523,15 +525,23 @@ class App(tk.Tk):
         c = self.cal
         z = SafeZone.from_dict(c.safe_zone).to_pixels(W, H)
         d.rectangle(z, outline=(0, 255, 0), width=3)
-        if c.bag_left and c.bag_right:
-            d.line((tuple(c.bag_left), tuple(c.bag_right)), fill=(255, 0, 255), width=3)
+        iw, ih = img.size
+        # red: places the mouse must never click (from the real game's layout)
+        for (x0, y0, x1, y1) in bss.NO_CLICK.values():
+            d.rectangle((x0 * iw, y0 * ih, x1 * iw, y1 * ih), outline=(255, 40, 40), width=2)
+        # where Beeline reads things: pollen numbers + bar (magenta), banner (yellow), feed (orange)
+        layout = dict(bss.LAYOUT)
+        layout.update(c.layout or {})
+        for key, col in (("pollen_text", (255, 0, 255)), ("banner", (255, 255, 0)), ("feed", (255, 140, 0))):
+            x0, y0, x1, y1 = layout[key]
+            d.rectangle((x0 * iw, y0 * ih, x1 * iw, y1 * ih), outline=col, width=3)
+        bx0, bx1, by = layout["pollen_bar"]
+        d.line((bx0 * iw, by * ih, bx1 * iw, by * ih), fill=(255, 0, 255), width=3)
         for p in self.bag_pts:
-            d.ellipse((p[0] - 5, p[1] - 5, p[0] + 5, p[1] + 5), outline=(255, 0, 255), width=2)
-        for box, col in ((c.eprompt_box, (255, 255, 0)), (c.balloon_box, (0, 200, 255)),
-                         (c.field_box, (255, 128, 0))):
-            if box:
-                x, y, w, h = box
-                d.rectangle((x, y, x + w, y + h), outline=col, width=2)
+            d.ellipse((p[0] - 6, p[1] - 6, p[0] + 6, p[1] + 6), outline=(255, 0, 255), width=3)
+        if c.balloon_box:
+            x, y, w, h = c.balloon_box
+            d.rectangle((x, y, x + w, y + h), outline=(0, 200, 255), width=2)
         self._update_test(img, d)
         small = over.resize((int(W * SETUP_SCALE), int(H * SETUP_SCALE)), Image.BILINEAR)
         self._setup_photo = to_photo(small, self)

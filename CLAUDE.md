@@ -278,3 +278,7 @@ To do: remake the practice game to look like these; tests on the real screenshot
   - Tesseract is required for real runs. The hidden screen is 1920×1080 and drift tolerances are proportional.
 - [x] Practice game redrawn to look like the real game (`beeline/synth_bss.py`): bars with numbers, E box + banner (3 texts), feed, hotbar, menu icons, neighbours' balloons, cyan Saturator with a gold top. Simulated runs use the fake world's "what OCR would read". The end-to-end tests use real Tesseract on it.
 - [x] Setup tab: every step is now "Test it" with the screenshot defaults; fine-tuning is optional. START-HERE updated (Tesseract, camera/shift-lock how-to, new Setup steps, new stop messages).
+- [x] Saturator must be seen in 2 looks in a row before it counts (one-frame cyan flashes ignored, tested). Drift correction ignores sudden big jumps.
+- [x] The Setup picture now outlines the read areas (pollen, banner, feed), the no-click areas in red, and the green click zone. Checked against the real screenshots: they line up.
+- Not done: reading "Popcat989" off the hive sign. Pale yellow text on a yellow sign comes out as "PORRIBS" in OCR, so it's unreliable. The hive check is the "Make Honey" banner plus routes recorded per hive slot.
+- Re-ran both end-to-end tests with **real Tesseract** at 1920×1080 on the new practice game. Fake game: 4 trips, all counters correct. GUI test: banner/bag/Saturator/field tests read correctly, dry run, real run, Stop and F3 all pass.
