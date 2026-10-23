@@ -250,6 +250,15 @@ class App(tk.Tk):
             for text, cmd in items:
                 ttk.Button(r, text=text, command=cmd).pack(side="left", padx=1)
 
+        s = step("uisize", "0. Interface size (do this first)")
+        r = ttk.Frame(s)
+        r.pack(fill="x")
+        self.v_ui = tk.DoubleVar(value=round(float(self.cal.ui_scale or 1.0) * 100))
+        ttk.Label(r, text="Smaller").pack(side="left")
+        ttk.Scale(r, from_=70, to=160, variable=self.v_ui, length=200,
+                  command=lambda v: self._ui_scale_changed(float(v))).pack(side="left")
+        ttk.Label(r, text="Bigger").pack(side="left")
+        btns(s, ("Reset to 100%", lambda: (self.v_ui.set(100), self._ui_scale_changed(100))))
         s = step("bag", "A. Bag (pollen) numbers and bar")
         btns(s, ("Test it", lambda: self.set_test("bag")),
              ("Fine-tune: click the bar's two ends", lambda: self.set_mode("bag")))
@@ -277,6 +286,7 @@ class App(tk.Tk):
         self.refresh_setup_status()
         tools = display.tool_status()
         tools["python3-xlib (F3 from anywhere)"] = xlib_available()
+        tools["tesseract-ocr (reads the numbers and banner)"] = bss.ocr_available()
         self.tools_var.set("Installed helpers:\n" + "\n".join(
             ("  OK   " if ok else "  MISSING  ") + name for name, ok in tools.items()))
 
@@ -530,7 +540,7 @@ class App(tk.Tk):
         for (x0, y0, x1, y1) in bss.NO_CLICK.values():
             d.rectangle((x0 * iw, y0 * ih, x1 * iw, y1 * ih), outline=(255, 40, 40), width=2)
         # where Beeline reads things: pollen numbers + bar (magenta), banner (yellow), feed (orange)
-        layout = dict(bss.LAYOUT)
+        layout = bss.scaled_layout(bss.LAYOUT, float(c.ui_scale or 1.0))
         layout.update(c.layout or {})
         for key, col in (("pollen_text", (255, 0, 255)), ("banner", (255, 255, 0)), ("feed", (255, 140, 0))):
             x0, y0, x1, y1 = layout[key]
@@ -732,6 +742,11 @@ class App(tk.Tk):
         self.refresh_setup_status()
         messagebox.showinfo("Saved", "Calibration saved.")
 
+    def _ui_scale_changed(self, pct: float) -> None:
+        self.cal.ui_scale = round(max(70.0, min(160.0, pct)) / 100.0, 3)
+        self.step_status["uisize"].set("%d%%: drag until the pink box sits on the Pollen numbers and the yellow "
+                                       "box on the banner text (press Save calibration after)" % round(pct))
+
     def refresh_setup_status(self) -> None:
         if not hasattr(self, "step_status"):
             return
@@ -739,6 +754,9 @@ class App(tk.Tk):
         fieldname = self.v_field.get() if hasattr(self, "v_field") else FIELDS[0]
         ok = lambda b: "done" if b else "NOT DONE"
         default = "Uses the defaults from your screenshots"
+        if "uisize" in self.step_status:
+            self.step_status["uisize"].set("%d%% (100%% = same as your screenshots). Line up the pink and yellow "
+                                           "boxes with the Pollen numbers and the banner." % round((c.ui_scale or 1.0) * 100))
         self.step_status["bag"].set("fine-tuned" if c.layout.get("pollen_bar") else default)
         self.step_status["eprompt"].set(default + (" (reads text: OK)" if bss.ocr_available()
                                                    else ". NEEDS: sudo apt install tesseract-ocr"))

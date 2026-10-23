@@ -36,7 +36,8 @@ class Senses:
                  reader: bss.Reader | None = None) -> None:
         self.cal = cal
         self.field_name = field_name
-        self.reader = reader or bss.Reader(layout=getattr(cal, "layout", None) or None)
+        self.reader = reader or bss.Reader(layout=getattr(cal, "layout", None) or None,
+                                           ui_scale=getattr(cal, "ui_scale", 1.0) or 1.0)
         if getattr(cal, "saturator_hue", None):
             self.reader.sat_hue = tuple(cal.saturator_hue)
         self._img = None

@@ -175,3 +175,35 @@ class PracticeGameScreenTests(unittest.TestCase):
             self.assertEqual(r.banner(img), banner, kw)
             self.assertEqual(r.saturator(img).visible(), sat, kw)
             self.assertEqual(bss.converting_done(b, r.banner(img), r.feed(img)), done, kw)
+
+
+class InterfaceSizeTests(unittest.TestCase):
+    """If Roblox draws the bars/banner bigger on Jacob's hidden screen, the 'Interface size'
+    setting scales the read areas to match."""
+
+    @staticmethod
+    def enlarge_ui(img, k):
+        W, H = img.size
+        band = img.crop((int(W * 0.30), 0, int(W * 0.70), int(H * 0.13)))
+        big = band.resize((int(band.width * k), int(band.height * k)), Image.LANCZOS)
+        out = img.copy()
+        out.paste(big, (int(W * 0.5 - big.width / 2), 0))   # grows from the top centre
+        return out
+
+    def test_layout_math(self):
+        lay = bss.scaled_layout(bss.LAYOUT, 1.25)
+        x0, y0, x1, y1 = lay["pollen_text"]
+        bx0, by0, bx1, by1 = bss.LAYOUT["pollen_text"]
+        self.assertAlmostEqual(x0, 0.5 + (bx0 - 0.5) * 1.25)
+        self.assertAlmostEqual(y1, by1 * 1.25)
+        self.assertEqual(bss.scaled_layout(bss.LAYOUT, 1.0), bss.LAYOUT)
+
+    def test_bigger_interface_read_with_matching_setting(self):
+        for name in ("05-hive-before-convert", "04-pine-tree-grinding-b"):
+            pct = TRUTH[name][0]
+            img = self.enlarge_ui(load(name, 1920), 1.25)
+            r = bss.Reader(ui_scale=1.25)
+            self.assertAlmostEqual(r.bar_percent(img), pct, delta=3, msg=name)
+            if OCR:
+                self.assertAlmostEqual(r.bag(img).percent, pct, delta=3, msg=name)
+                self.assertEqual(r.banner(img), TRUTH[name][1], name)

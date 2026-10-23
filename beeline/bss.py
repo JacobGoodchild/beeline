@@ -165,10 +165,31 @@ class Blob:
         return self.count >= min_count
 
 
+TOP_CENTRE_KEYS = ("pollen_text", "banner", "banner_wide", "ebox", "hive_name")
+
+
+def scaled_layout(base: dict, ui_scale: float) -> dict:
+    """Roblox may draw its interface a bit bigger or smaller relative to the window than in
+    Jacob's screenshots.  Scale the read areas: the bars/banner grow from the top centre,
+    the notification feed from the bottom-right corner."""
+    k = float(ui_scale)
+    out = dict(base)
+    if abs(k - 1.0) < 1e-6:
+        return out
+    for key in TOP_CENTRE_KEYS:
+        x0, y0, x1, y1 = base[key]
+        out[key] = (0.5 + (x0 - 0.5) * k, y0 * k, 0.5 + (x1 - 0.5) * k, y1 * k)
+    x0, x1, y = base["pollen_bar"]
+    out["pollen_bar"] = (0.5 + (x0 - 0.5) * k, 0.5 + (x1 - 0.5) * k, y * k)
+    x0, y0, x1, y1 = base["feed"]
+    out["feed"] = (1 - (1 - x0) * k, 1 - (1 - y0) * k, 1.0, 1.0)
+    return out
+
+
 class Reader:
-    def __init__(self, layout: dict | None = None, use_ocr: bool = True) -> None:
-        self.layout = dict(LAYOUT)
-        if layout:
+    def __init__(self, layout: dict | None = None, use_ocr: bool = True, ui_scale: float = 1.0) -> None:
+        self.layout = scaled_layout(LAYOUT, max(0.6, min(1.8, float(ui_scale or 1.0))))
+        if layout:   # exact fine-tuning (e.g. the clicked bar ends) wins over the scale
             self.layout.update({k: tuple(v) for k, v in layout.items()})
         self.use_ocr = use_ocr and ocr_available()
         # Saturator colour test (PIL HSV units 0-255).  From the screenshots: hue ~189 deg,

@@ -125,6 +125,7 @@ class Calibration:
     # measured from Jacob's screenshots (bss.LAYOUT).
     layout: dict = field(default_factory=dict)
     saturator_hue: list | None = None      # [low, high] hue in degrees, from a Saturator sample
+    ui_scale: float = 1.0                  # interface size compared with Jacob's screenshots
 
     # images (not saved in the JSON, saved next to it as PNGs)
     eprompt_img: Image.Image | None = None
