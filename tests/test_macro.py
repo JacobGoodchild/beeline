@@ -291,6 +291,27 @@ class RealGameRuleTests(unittest.TestCase):
         self.assertTrue(reason.startswith("Finished"), reason)
         self.assertIn("e", [n for (_, n) in sim.world.keys_log])
 
+    def test_one_frame_cyan_flash_is_not_taken_for_the_saturator(self):
+        """Only the first look in the field 'sees' a Saturator (e.g. a passing cyan ring):
+        it must not count as 'already placed'."""
+        from beeline import bss
+        sim = Sim(minutes=3)
+        reader = sim.runner.senses.reader
+        real = reader.saturator
+        state = {"flashed": False}
+
+        def flashy(img):
+            blob = real(img)
+            if sim.world.in_field() and sim.world.saturator is None and not state["flashed"]:
+                state["flashed"] = True
+                return bss.Blob(100, 500, 300, 10, 10, 0.8)
+            return blob
+        reader.saturator = flashy
+        reason = sim.run()
+        self.assertTrue(state["flashed"])
+        self.assertTrue(reason.startswith("Finished"), reason)
+        self.assertEqual(sim.world.sprinkler_presses, 1, "the flash didn't stop it placing the real one")
+
     def test_no_ocr_stops_before_pressing_anything(self):
         sim = Sim(minutes=30)
         sim.runner.senses.reader.use_ocr = False

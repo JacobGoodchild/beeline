@@ -337,9 +337,21 @@ class Runner:
                    "Stopped: walking home took too long (no Make Honey prompt)")
 
     # ------------------------------------------------------------------ Saturator
+    def saturator_seen(self, frames: int = 2, gap: float = 0.4) -> bool:
+        """The Saturator must show up in several looks in a row (not just one frame), so a
+        passing cyan ring or bubble isn't mistaken for it."""
+        for i in range(frames):
+            if i:
+                self.inp.sleep(gap)
+            img = self.look()
+            self.safety_check(img)
+            if not self.senses.saturator_visible(img):
+                return False
+        return True
+
     def place_saturator(self) -> None:
         img = self.look()
-        if self.senses.saturator_visible(img):
+        if self.saturator_seen():
             log.info("Saturator already visible; not pressing 2")
             self.guard.placed = True
             self._set_anchor(img)
@@ -376,9 +388,7 @@ class Runner:
         end = self.clock.now() + seconds
         while self.clock.now() < end:
             self.inp.sleep(1.0)
-            img = self.look()
-            self.safety_check(img)
-            if self.senses.saturator_visible(img):
+            if self.saturator_seen():
                 return True
         return False
 
@@ -400,6 +410,8 @@ class Runner:
         W, H = img.size   # work in fractions of the screen, so any size works
         dx = (b.cx - self.anchor[0]) / W
         dy = (b.cy - self.anchor[1]) / H
+        if abs(dx) > 0.25 or abs(dy) > 0.25:
+            return []     # a sudden big jump is more likely something else cyan: don't chase it
         moves = []
         if abs(dx) > tol_x:
             moves.append(("d" if dx > 0 else "a", min(0.8, abs(dx) * 4.3)))
