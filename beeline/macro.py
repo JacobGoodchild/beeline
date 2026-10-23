@@ -24,13 +24,22 @@ log = logging.getLogger("beeline.macro")
 
 # Gathering loop patterns: (key, seconds).  Each pattern ends where it started, so
 # the loops stay around the Saturator.  "small" is a tight square that sweeps tokens
-# and bubbles (good for the Pop Star passive); "medium" is a wider square.
+# and bubbles (good for the Pop Star passive); "medium" is a wider snake that sweeps
+# three rows side to side, like Natro's snake patterns.
 PATTERNS = {
     "small": [("w", 0.7), ("d", 0.7), ("s", 0.7), ("a", 0.7),
               ("d", 0.5), ("w", 0.5), ("a", 0.5), ("s", 0.5)],
-    "medium": [("w", 1.3), ("d", 1.3), ("s", 1.3), ("a", 1.3),
-               ("w", 0.65), ("d", 0.65), ("s", 0.65), ("a", 0.65)],
+    "medium": [("a", 1.0), ("w", 0.35), ("d", 2.0), ("w", 0.35), ("a", 2.0),
+               ("w", 0.35), ("d", 2.0), ("s", 1.05), ("a", 1.0)],
 }
+
+
+def pattern_offset(pattern) -> tuple:
+    """Where a pattern ends relative to where it started (should be (0, 0))."""
+    x = sum(t for k, t in pattern if k == "d") - sum(t for k, t in pattern if k == "a")
+    y = sum(t for k, t in pattern if k == "w") - sum(t for k, t in pattern if k == "s")
+    return round(x, 6), round(y, 6)
+
 
 IDLE_NUDGE_AFTER = 40.0       # seconds without input before a camera nudge (also proves the game is alive)
 CHECK_EVERY = 2.0             # seconds between screen checks while waiting

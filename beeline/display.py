@@ -143,14 +143,27 @@ class HiddenScreen:
         return r.stdout.strip()
 
     def find_game_window(self) -> str | None:
-        """Return the X window id of Sober (or the fake game) on the hidden screen."""
+        """Return the X window id of Sober (or the fake game) on the hidden screen.
+
+        Tries the usual names first.  The hidden screen only ever holds the game, so if the
+        title is something unexpected, the biggest visible window is used instead."""
         for pattern in ("sober", "Sober", "Roblox", "Beeline fake game"):
             out = self._xdotool(["search", "--onlyvisible", "--name", pattern])
             if not out:
                 out = self._xdotool(["search", "--onlyvisible", "--class", pattern])
             if out:
                 return out.splitlines()[-1]
-        return None
+        best, best_area = None, 0
+        for wid in self._xdotool(["search", "--onlyvisible", "--name", ""]).split():
+            geo = self._xdotool(["getwindowgeometry", "--shell", wid])
+            vals = dict(line.split("=", 1) for line in geo.splitlines() if "=" in line)
+            try:
+                area = int(vals.get("WIDTH", 0)) * int(vals.get("HEIGHT", 0))
+            except ValueError:
+                continue
+            if area > best_area and area >= 320 * 240:
+                best, best_area = wid, area
+        return best
 
     def fit_game_window(self) -> str:
         """Make the game window fill the hidden screen exactly and give it focus.

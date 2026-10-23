@@ -92,8 +92,9 @@ class RouteRecorder:
         self.t0 = self.clock.now()
         self.held = set()
 
-    def key(self, key: str, down: bool) -> bool:
-        """Record one key event.  Returns False if it was ignored."""
+    def key(self, key: str, down: bool, at: float | None = None) -> bool:
+        """Record one key event (`at` = when it happened, default now).
+        Returns False if it was ignored."""
         if key not in ALLOWED_KEYS:
             return False
         if down and key in self.held:      # keyboard auto-repeat
@@ -101,11 +102,13 @@ class RouteRecorder:
         if not down and key not in self.held:
             return False
         (self.held.add if down else self.held.discard)(key)
-        self.route.events.append([round(self.clock.now() - self.t0, 3), "down" if down else "up", key])
+        t = self.clock.now() if at is None else at
+        self.route.events.append([round(max(0.0, t - self.t0), 3), "down" if down else "up", key])
         return True
 
     def stop(self) -> Route:
         t = round(self.clock.now() - self.t0, 3)
+        self.route.events.sort(key=lambda e: e[0])  # stable: keeps order of same-time events
         for k in sorted(self.held):
             self.route.events.append([t, "up", k])
         self.held.clear()

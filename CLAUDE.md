@@ -223,3 +223,10 @@ Keep a **Progress log** section at the bottom of this file: what's done, what's 
 10. **No secrets.** Nothing logs in, rejoins or stores credentials. The settings file holds only the options and the hive slot. ✅
 11. **No chat, no cloud.** `/` and Enter are blocked. There's no `.github` folder or workflows. The macro only runs on Jacob's PC. ✅
 - Extra guard added in the audit: input and the hidden screen are refused on display `:0` **and** on whatever display Beeline was opened on (some PCs use `:1` for the desktop).
+- [ ] 12. Polish and extra tests (in progress):
+  - Tested on **Python 3.10 + Pillow 9.0.1** (the versions Mint 21.3 ships) as well as 3.12: all tests pass.
+  - Routes can now be recorded by walking **directly in the hidden screen window** (`beeline/keywatch.py` watches which allowlisted keys are down on the hidden screen; it only reads, never sends). The preview runs at 10 fps while recording.
+  - Sober window detection falls back to the biggest visible window on the hidden screen if its title isn't what we expect.
+  - "Test everything at once" button; extra day/night samples for the field and the Saturator; "Faster graphics" (Xephyr `-glamor`) tick box.
+  - `make-shortcut.sh` adds Beeline to the Menu and Desktop.
+  - "Medium" loop is now a 3-row snake (net zero movement, tested).

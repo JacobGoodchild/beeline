@@ -49,6 +49,14 @@ cd ~/beeline && python3 beeline.py
 
 The Beeline window opens. Use this same command every time you want to start it.
 
+**Optional: add a Beeline icon** to your Menu (under Games) and your Desktop, so you don't need the terminal next time:
+
+```
+sh ~/beeline/make-shortcut.sh
+```
+
+(The first time you double-click the desktop icon, Mint may ask whether to trust it. Choose **Trust and Launch**.)
+
 **To get updates later** (when Claude has improved it), close Beeline, then paste:
 
 ```
@@ -122,13 +130,19 @@ Do these in order. Press **Save calibration** at the end (and whenever you chang
 2. Click **Drag a box over the flowers**, and drag a box over the flowers around your character. Keep away from the bag bar and buttons.
 3. **Test it**: it should say YES in the field and "no" when you're at the hive.
 
+**Night time:** the game gets darker at night, which can confuse steps D and E. If Beeline stops at night saying it isn't in the field, use **Add another sample (e.g. at night)** on steps D and E while it's dark. Beeline then accepts either look.
+
+**Test everything at once** (button at the bottom of the list) shows every reading on one line. It's handy for a final check.
+
 **F. Click-safe zone** (the green box)
 The mouse is only ever allowed inside this box. The default is already safe: it keeps well away from your inventory on the left, the hotbar at the bottom and the top bar. You can drag a **smaller** box if you like. It can never be made bigger than the allowed area.
 
 **G. Routes** (do this for each hive slot you use)
 1. Stand on your hive pad. Turn shift lock on. Don't touch the camera.
-2. Click **Record: hive -> field**. Then **click once on the Setup picture** (it gets a green border, which means it's listening to your keyboard).
-3. Walk to the **middle of Pine Tree Forest** using **W A S D** (Space, Shift, comma and full stop work too). Use the route you like, cannons included (walk onto one and press E). It helps to end slightly towards the **Sticker Stack** side of the middle, where the werewolf doesn't notice you.
+2. Click **Record: hive -> field**.
+3. Walk to the **middle of Pine Tree Forest** using **W A S D** (Space, Shift, comma and full stop work too). You can walk in either place:
+   - **in the hidden screen window** (easiest, because it's full size and smooth): click inside it first so it has your keyboard, **or**
+   - **on the Setup picture**: click it once so it gets a green border, then walk. The picture updates 10 times a second while recording. Use the route you like, cannons included (walk onto one and press E). It helps to end slightly towards the **Sticker Stack** side of the middle, where the werewolf doesn't notice you.
 4. Click **STOP recording + save** the moment you arrive.
 5. Now, from the middle of the field, click **Record: field -> hive**, click the picture, walk home to your hive pad, and click **STOP recording + save**.
 6. The Setup tab shows each route's length, for example "38.2 seconds, 14 key presses". If it looks wrong, record it again.
@@ -158,6 +172,10 @@ Please do these in order, with **no speed buffs** active (no Haste, Bear Morph o
 
 Send those to Claude if you want help.
 
+**If the game is very slow or jerky in the hidden screen:** tick **Faster graphics** on the Main tab, close Sober, and start the hidden screen again. If the hidden screen then won't start, untick it.
+
+**If "Fit game to hidden screen" can't find Sober:** wait until Sober has fully opened and try again.
+
 What the stop messages mean:
 
 | Message | What happened | What to do |
@@ -175,6 +193,7 @@ What the stop messages mean:
 | The game window disappeared | Sober closed or crashed | Reopen Sober and rejoin |
 | Converting didn't start after pressing E | Pressing E didn't start honey-making | Check you're on the pad; redo Setup step B |
 | Stopped at the hive: the balloon was still converting | The balloon took longer than the maximum wait | Nothing is lost. Your bees keep converting. Start again when it's done |
+| Couldn't see the hidden screen | The hidden screen closed | Press Start hidden screen again, reopen Sober |
 | Stopped by you | You pressed STOP or F3 | - |
 | Finished: time limit reached | All done, with a final trip home to make honey | - |
 

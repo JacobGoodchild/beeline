@@ -84,6 +84,12 @@ class HappyPathTests(unittest.TestCase):
         self.assertTrue(reason.startswith("Finished"), reason)
         self.assertEqual(sim.world.sprinkler_presses, 1)
 
+    def test_patterns_end_where_they_start(self):
+        from beeline.macro import PATTERNS, pattern_offset
+        for name, pat in PATTERNS.items():
+            self.assertEqual(pattern_offset(pat), (0, 0), name)
+            self.assertTrue(all(k in ("w", "a", "s", "d") for k, _ in pat))
+
     def test_medium_loops(self):
         sim = Sim(minutes=10, loop_size="medium")
         self.assertTrue(sim.run().startswith("Finished"))

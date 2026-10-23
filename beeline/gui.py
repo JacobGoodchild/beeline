@@ -17,6 +17,7 @@ from PIL import Image, ImageDraw, ImageTk
 from . import display, logsetup
 from .config import FIELDS, LOGS_DIR, SCREEN_SIZE, Calibration, Settings
 from .hotkey import GlobalHotkey, xlib_available
+from .keywatch import KeyWatcher
 from .macro import Runner
 from .routes import ROUTE_NAMES, Route, RouteRecorder
 from .safety import (ALLOWED_KEYS, InputRefused, RecordingBackend, SafeInput, SafeZone,
@@ -68,6 +69,9 @@ class App(tk.Tk):
         self.recorder: RouteRecorder | None = None
         self.record_inp: SafeInput | None = None
         self._pending_release: dict = {}
+        self.keywatch: KeyWatcher | None = None
+        self._forwarded: set = set()
+        self.watch_q: "queue.Queue" = queue.Queue()
 
         self._build()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -259,6 +263,7 @@ class App(tk.Tk):
         btns(s, ("Record: hive -> field", lambda: self.start_recording("hive_to_field")),
              ("Record: field -> hive", lambda: self.start_recording("field_to_hive")))
         btns(s, ("STOP recording + save", self.stop_recording), ("Cancel recording", self.cancel_recording))
+        ttk.Button(inner, text="Test everything at once", command=lambda: self.set_test("all")).pack(fill="x", pady=(6, 0))
         ttk.Button(inner, text="Save calibration", command=self.save_cal).pack(fill="x", pady=6)
         self.refresh_setup_status()
         tools = display.tool_status()
@@ -409,6 +414,7 @@ class App(tk.Tk):
 
     # ================================================================ periodic updates
     def _tick_queues(self) -> None:
+        self._drain_watch()
         try:
             while True:
                 msg = self.status_q.get_nowait()
@@ -472,7 +478,8 @@ class App(tk.Tk):
             self.preview.delete("all")
             self.preview.create_text(int(W * MAIN_SCALE) // 2, int(H * MAIN_SCALE) // 2, fill="white",
                                      text="Hidden screen not running")
-        self.after(300, self._tick_preview)  # about 3 frames a second
+        # about 3 frames a second normally, 10 while recording a route
+        self.after(100 if self.recorder is not None else 300, self._tick_preview)
 
     def _draw_setup_preview(self, img: Image.Image) -> None:
         over = img.copy()
@@ -531,6 +538,16 @@ class App(tk.Tk):
                     if vis:
                         d.line((b.cx - 20, b.cy, b.cx + 20, b.cy), fill=(255, 0, 0), width=4)
                         d.line((b.cx, b.cy - 20, b.cx, b.cy + 20), fill=(255, 0, 0), width=4)
+            elif what == "all":
+                s = senses.look(img)
+                self.test_text.set(
+                    "Bag: %s   |   E-prompt: %s   |   Balloon: %s   |   Saturator: %s   |   In field: %s   |   "
+                    "Disconnect box: %s" % (
+                        "-" if s.bag is None else "%d%%" % s.bag,
+                        "-" if s.eprompt is None else ("SEEN" if s.eprompt else "no"),
+                        s.balloon, "SEEN" if s.saturator else "no",
+                        "-" if s.in_field is None else ("YES" if s.in_field else "no"),
+                        "YES" if s.dialog else "no"))
             elif what == "field":
                 sc = senses.field_score(img)
                 self.test_text.set("In %s: %s (looks %.0f%% like it, needs %.0f%%)"
@@ -695,13 +712,22 @@ class App(tk.Tk):
         self.record_inp = SafeInput(XdotoolBackend(self.settings.display), SCREEN_SIZE, self.cal.zone(),
                                     stop_event=self.record_stop)
         self.recorder = RouteRecorder(name, slot, self.v_field.get())
+        # Also watch the hidden screen's keyboard, so walking directly in the hidden screen
+        # window is recorded too.  When this works it is the ONLY source of recorded keys
+        # (keys typed on the preview are forwarded to the game and then seen here).
+        self.keywatch = KeyWatcher(self.settings.display,
+                                   lambda k, d: self.watch_q.put((k, d, time.monotonic())))
+        if not self.keywatch.start():
+            self.keywatch = None
         self.mode = None
         self.testing = None
         self.setup_canvas.focus_set()
         where = "on your hive pad" if name == "hive_to_field" else "in the middle of the field (by the Saturator)"
-        self.setup_help.set("RECORDING '%s' for slot %d. Start %s. Keep the mouse over this picture and walk "
-                            "with W A S D (space, Shift, , . also work). Press 'STOP recording + save' when you "
-                            "arrive." % (ROUTE_NAMES[name], slot, where))
+        how = ("Walk in the hidden screen window, or click this picture and walk here"
+               if self.keywatch else "Click this picture and walk here")
+        self.setup_help.set("RECORDING '%s' for slot %d. Start %s. %s with W A S D (Space, Shift, comma and "
+                            "full stop also work). Press 'STOP recording + save' when you arrive."
+                            % (ROUTE_NAMES[name], slot, where, how))
 
     def _tk_key(self, e):
         return TK_KEYS.get(e.keysym)
@@ -716,11 +742,13 @@ class App(tk.Tk):
         if pending is not None:          # auto-repeat: a release immediately followed by a press
             self.after_cancel(pending)
             return
-        if key in self.recorder.held:
+        if key in self._forwarded:
             return
         try:
             self.record_inp.key_down(key)
-            self.recorder.key(key, True)
+            self._forwarded.add(key)
+            if self.keywatch is None:
+                self.recorder.key(key, True)
         except InputRefused:
             pass
 
@@ -737,7 +765,9 @@ class App(tk.Tk):
         if self.recorder is None:
             return
         self.record_inp.key_up(key)
-        self.recorder.key(key, False)
+        self._forwarded.discard(key)
+        if self.keywatch is None:
+            self.recorder.key(key, False)
 
     def stop_recording(self) -> None:
         if self.recorder is None:
@@ -745,6 +775,12 @@ class App(tk.Tk):
         for k in list(self._pending_release):
             self.after_cancel(self._pending_release.pop(k))
         self.record_inp.release_all()
+        self._forwarded.clear()
+        if self.keywatch is not None:
+            self.keywatch.stop()
+            time.sleep(0.05)
+            self._drain_watch()
+            self.keywatch = None
         route = self.recorder.stop()
         self.recorder = None
         if not route.events:
@@ -755,7 +791,20 @@ class App(tk.Tk):
         self.setup_help.set("Saved '%s': %s." % (ROUTE_NAMES[route.name], route.summary()))
         self.refresh_setup_status()
 
+    def _drain_watch(self) -> None:
+        try:
+            while True:
+                k, d, t = self.watch_q.get_nowait()
+                if self.recorder is not None:
+                    self.recorder.key(k, d, at=t)
+        except queue.Empty:
+            pass
+
     def cancel_recording(self) -> None:
+        if self.keywatch is not None:
+            self.keywatch.stop()
+            self.keywatch = None
+        self._forwarded.clear()
         if self.record_inp is not None:
             self.record_inp.release_all()
         self.recorder = None
