@@ -282,7 +282,7 @@ To do: remake the practice game to look like these; tests on the real screenshot
 - [x] Main loop now uses the real-game rules:
   - E is pressed only when the banner reads "Make Honey" (checked right before pressing). A route may press E only when the banner says "Fire the Red Cannon" at that moment, otherwise it stops.
   - Arrival at the hive = banner "Make Honey" or "Collect Pollen". Converting done = pollen 0 + "Collect Pollen" banner (or the feed's balloon message), seen twice in a row. Neighbours' balloons are ignored.
-  - Field arrival = blue ground and the feed doesn't name another field. While gathering, the feed naming another field twice in a row → stop.
+  - Field arrival = blue ground and the feed doesn't name another field. While gathering, the feed naming another field 3 times in a row → stop.
   - Bag = OCR current ÷ capacity, cross-checked with the bar (bar wins on a gap > 4 points; 3 big disagreements in a row → stop).
   - Tesseract is required for real runs. The hidden screen is 1920×1080 and drift tolerances are proportional.
 - [x] Practice game redrawn to look like the real game (`beeline/synth_bss.py`): bars with numbers, E box + banner (3 texts), feed, hotbar, menu icons, neighbours' balloons, cyan Saturator with a gold top. Simulated runs use the fake world's "what OCR would read". The end-to-end tests use real Tesseract on it.

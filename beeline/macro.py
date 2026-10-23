@@ -486,7 +486,7 @@ class Runner:
         other = self.senses.wrong_field(img)
         if other:
             self._wrong_field += 1
-            if self._wrong_field >= 2:
+            if self._wrong_field >= 3:  # one message can stay on screen across two checks
                 self.fail("Stopped: the notifications say I'm gathering in %s, not %s" % (other, self.s.field))
         else:
             self._wrong_field = 0
