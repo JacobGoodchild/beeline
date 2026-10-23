@@ -27,7 +27,7 @@ ROUTES_DIR = os.path.join(DATA, "routes")
 LOGS_DIR = os.path.join(DATA, "logs")
 
 FIELDS = ["Pine Tree Forest"]  # more can be added later
-SCREEN_SIZE = (1280, 720)       # the hidden screen is always this size
+SCREEN_SIZE = (1920, 1080)      # the hidden screen is always this size (big enough for reliable OCR)
 
 
 @dataclass
@@ -121,6 +121,11 @@ class Calibration:
 
     safe_zone: dict = field(default_factory=lambda: SafeZone().to_dict())
 
+    # Fine-tuning of the real-game layout (fractions of the screen); empty = the defaults
+    # measured from Jacob's screenshots (bss.LAYOUT).
+    layout: dict = field(default_factory=dict)
+    saturator_hue: list | None = None      # [low, high] hue in degrees, from a Saturator sample
+
     # images (not saved in the JSON, saved next to it as PNGs)
     eprompt_img: Image.Image | None = None
     balloon_present_img: Image.Image | None = None
@@ -149,6 +154,8 @@ class Calibration:
         return SafeZone.from_dict(self.safe_zone)
 
     def missing(self, field_name: str, convert_balloon: bool) -> list:
+        """Nothing is required any more: the real-game layout has good defaults from Jacob's
+        screenshots.  (Kept for the old, fully calibrated mode; the main loop no longer uses it.)"""
         out = []
         if not self.bag_ready():
             out.append("bag meter")
@@ -165,6 +172,10 @@ class Calibration:
     # -- capture helpers (called from the Setup tab) --------------------------
     def capture_bag(self, img: Image.Image, left, right, which: str = "empty") -> None:
         self.bag_left, self.bag_right = [int(left[0]), int(left[1])], [int(right[0]), int(right[1])]
+        W, H = img.size
+        # fine-tune the real-game bar position (a row through the bar, below its numbers)
+        self.layout["pollen_bar"] = [min(left[0], right[0]) / W, max(left[0], right[0]) / W,
+                                     (left[1] + right[1]) / 2.0 / H]
         cols = vision.sample_bag_colours(img, tuple(self.bag_left), tuple(self.bag_right))
         if which == "empty":
             self.bag_empty_colours = [list(c) for c in cols]
@@ -194,6 +205,14 @@ class Calibration:
         colour = list(vision.dominant_bright_colour(crop))
         blob = vision.find_colour_blob(img, tuple(colour), self.saturator_tolerance)
         count = max(4, int(blob.count * 0.25))
+        hsv = crop.convert("RGB").convert("HSV")
+        hues = sorted(h for (h, s_, v) in hsv.getdata() if s_ >= 200 and v >= 180)
+        if hues:
+            mid = hues[len(hues) // 2] * 360 / 255.0
+            lo, hi = mid - 8, mid + 8
+            if add and self.saturator_hue:
+                lo, hi = min(lo, self.saturator_hue[0]), max(hi, self.saturator_hue[1])
+            self.saturator_hue = [round(lo, 1), round(hi, 1)]
         if add and self.saturator_colour:
             self.saturator_extra_colours.append(colour)
             self.saturator_min_count = min(self.saturator_min_count, count)

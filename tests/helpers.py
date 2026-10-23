@@ -35,19 +35,29 @@ def fake_routes(slot=1):
     return {"hive_to_field": to_field, "field_to_hive": to_hive}
 
 
+def use_fake_ocr(runner, world):
+    """Long simulated runs read the text the fake world knows is on screen instead of
+    running Tesseract thousands of times.  (Real OCR is tested on real screenshots and in
+    the end-to-end tests.)"""
+    runner.senses.reader.use_ocr = True
+    runner.senses.reader.ocr_text = world.fake_ocr
+
+
 class Sim:
     def __init__(self, minutes=30, **settings_kw):
         self.world = FakeWorld()
         self.clock = FakeClock()
         self.clock.on_sleep = self.world.advance
-        self.settings = Settings(run_hours=0, run_minutes=minutes, dry_run=False, **settings_kw)
-        self.cal = calibrated()
-        self.inp = SafeInput(make_backend(self.world), clock=self.clock, zone=self.cal.zone())
+        settings_kw.setdefault("dry_run", False)
+        self.settings = Settings(run_hours=0, run_minutes=minutes, **settings_kw)
+        self.cal = Calibration()   # no calibration needed: defaults come from Jacob's screenshots
+        self.inp = SafeInput(make_backend(self.world), self.world.size, clock=self.clock, zone=self.cal.zone())
         self.statuses = []
         self.tmp = tempfile.mkdtemp()
         self.runner = Runner(self.settings, self.cal, self.inp, self.world.screenshot, fake_routes(),
                              clock=self.clock, status=self.statuses.append,
                              stops_dir=os.path.join(self.tmp, "stops"))
+        use_fake_ocr(self.runner, self.world)
 
     def run(self):
         return self.runner.run()

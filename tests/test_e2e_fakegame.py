@@ -17,9 +17,9 @@ import unittest
 sys.path.insert(0, os.path.dirname(__file__))
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-from helpers import calibrated, fake_routes  # noqa: E402
+from helpers import fake_routes  # noqa: E402
 
-from beeline.config import Settings  # noqa: E402
+from beeline.config import Calibration, Settings  # noqa: E402
 from beeline.display import HiddenScreen  # noqa: E402
 from beeline.macro import Runner  # noqa: E402
 from beeline.safety import SafeInput, XdotoolBackend  # noqa: E402
@@ -34,7 +34,7 @@ class FakeGameEndToEnd(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
         self.state_file = os.path.join(self.tmp, "state.json")
-        self.screen = HiddenScreen(self.DISPLAY, (1280, 720), mode="xvfb")
+        self.screen = HiddenScreen(self.DISPLAY, (1920, 1080), mode="xvfb")
         self.screen.start()
         env = dict(os.environ, DISPLAY=self.DISPLAY)
         self.game = subprocess.Popen([sys.executable, os.path.join(ROOT, "beeline.py"), "--fake-game", "--fast",
@@ -57,9 +57,9 @@ class FakeGameEndToEnd(unittest.TestCase):
             return json.load(f)
 
     def test_real_macro_against_fake_game(self):
-        s = Settings(run_hours=0, run_minutes=2, dry_run=False, display=self.DISPLAY)
-        cal = calibrated()
-        inp = SafeInput(XdotoolBackend(self.DISPLAY), (1280, 720), cal.zone())
+        s = Settings(run_hours=0, run_minutes=3, dry_run=False, display=self.DISPLAY)
+        cal = Calibration()   # defaults from Jacob's screenshots; real Tesseract OCR on the fake game
+        inp = SafeInput(XdotoolBackend(self.DISPLAY), (1920, 1080), cal.zone())
         runner = Runner(s, cal, inp, self.screen.screenshot, fake_routes(),
                         stops_dir=os.path.join(self.tmp, "stops"),
                         window_alive=lambda: self.screen.find_game_window() is not None)

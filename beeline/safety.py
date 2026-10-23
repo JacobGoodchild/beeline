@@ -235,7 +235,7 @@ class RecordingBackend(Backend):
 # ---------------------------------------------------------------------------
 
 class SafeInput:
-    def __init__(self, backend: Backend, screen_size: tuple = (1280, 720),
+    def __init__(self, backend: Backend, screen_size: tuple = (1920, 1080),
                  zone: SafeZone | None = None, clock: Clock | None = None,
                  stop_event: threading.Event | None = None, dry_run: bool = False) -> None:
         self.backend = backend

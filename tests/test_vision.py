@@ -29,35 +29,23 @@ def calibrated(with_fill=True, balloon=True) -> Calibration:
 
 
 class BagTests(unittest.TestCase):
+    """The simple bar reader (still used when Jacob clicks the bar ends to fine-tune)."""
     def test_bag_reading_matches_synthetic_fill(self):
-        for with_fill in (True, False):
-            s = Senses(calibrated(with_fill=with_fill))
-            for pct in (0, 5, 20, 37, 50, 62, 80, 94, 95, 100):
-                got = s.bag_percent(synth.draw_scene(bag=pct))
-                self.assertAlmostEqual(got, pct, delta=4, msg="fill=%s pct=%s got=%s" % (with_fill, pct, got))
-
-    def test_bag_reading_ignores_scene_behind(self):
-        s = Senses(calibrated())
-        for kw in ({"in_field": True}, {"eprompt": True}, {"in_field": True, "saturator_at": (640, 100)}):
-            self.assertAlmostEqual(s.bag_percent(synth.draw_scene(bag=70, **kw)), 70, delta=4)
-
-    def test_uncalibrated_bag_returns_none(self):
-        self.assertIsNone(Senses(Calibration()).bag_percent(synth.draw_scene(bag=50)))
+        empty = vision.sample_bag_colours(synth.draw_scene(bag=0), synth.BAG_LEFT, synth.BAG_RIGHT)
+        for pct in (0, 5, 20, 50, 80, 95, 100):
+            got = vision.read_bag_percent(synth.draw_scene(bag=pct), synth.BAG_LEFT, synth.BAG_RIGHT, empty,
+                                          synth.BAG_FILL)
+            self.assertAlmostEqual(got, pct, delta=4)
 
 
-class EPromptTests(unittest.TestCase):
-    def test_eprompt_found_and_not_found(self):
-        s = Senses(calibrated())
-        self.assertTrue(s.eprompt_visible(synth.draw_scene(eprompt=True)))
-        self.assertTrue(s.eprompt_visible(synth.draw_scene(eprompt=True, bag=80, balloon=True)))
-        self.assertFalse(s.eprompt_visible(synth.draw_scene(eprompt=False)))
-        self.assertFalse(s.eprompt_visible(synth.draw_scene(eprompt=False, in_field=True)))
-
-    def test_eprompt_found_when_shifted_a_little(self):
-        cal = calibrated()
-        img = synth.draw_scene(eprompt=True)
-        shifted = img.crop((-12, -8, 1280 - 12, 720 - 8))
-        self.assertTrue(Senses(cal).eprompt_visible(shifted))
+class TemplateTests(unittest.TestCase):
+    def test_template_found_and_not_found(self):
+        x, y, w, h = synth.EPROMPT_BOX
+        tpl = synth.draw_scene(eprompt=True).crop((x, y, x + w, y + h))
+        self.assertGreater(vision.match_template(synth.draw_scene(eprompt=True), tpl, synth.EPROMPT_BOX).score, 0.95)
+        shifted = synth.draw_scene(eprompt=True).crop((-12, -8, 1280 - 12, 720 - 8))
+        self.assertGreater(vision.match_template(shifted, tpl, synth.EPROMPT_BOX).score, 0.95)
+        self.assertLess(vision.match_template(synth.draw_scene(eprompt=False), tpl, synth.EPROMPT_BOX).score, 0.88)
 
 
 class BalloonTests(unittest.TestCase):
@@ -108,15 +96,6 @@ class SaturatorTests(unittest.TestCase):
         self.assertFalse(s.saturator_visible(synth.draw_scene(in_field=True, saturator_at=(60, 400))))
 
 
-class FieldTests(unittest.TestCase):
-    def test_in_field_check(self):
-        s = Senses(calibrated())
-        self.assertTrue(s.in_field(synth.draw_scene(in_field=True)))
-        self.assertTrue(s.in_field(synth.draw_scene(in_field=True, tick=1, saturator_at=(640, 300))))
-        self.assertFalse(s.in_field(synth.draw_scene(in_field=False)))
-        self.assertFalse(s.in_field(synth.draw_scene(in_field=False, eprompt=True)))
-
-
 class ScreenChecks(unittest.TestCase):
     def test_frame_change(self):
         a = synth.draw_scene(in_field=True, tick=0)
@@ -135,13 +114,14 @@ class ScreenChecks(unittest.TestCase):
 class PersistenceTests(unittest.TestCase):
     def test_calibration_round_trip(self):
         cal = calibrated()
+        cal.layout["pollen_bar"] = [0.53, 0.63, 0.047]
         with tempfile.TemporaryDirectory() as d:
             cal.save(d)
             back = Calibration.load(d)
-        self.assertEqual(back.missing(FIELD, True), [])
-        s = Senses(back)
-        self.assertAlmostEqual(s.bag_percent(synth.draw_scene(bag=50)), 50, delta=4)
-        self.assertTrue(s.eprompt_visible(synth.draw_scene(eprompt=True)))
+        self.assertEqual(back.layout["pollen_bar"], [0.53, 0.63, 0.047])
+        self.assertEqual(back.saturator_hue, cal.saturator_hue)
+        self.assertIsNotNone(back.balloon_present_img)
+        self.assertEqual(back.zone().to_dict(), cal.zone().to_dict())
 
     def test_tampered_safe_zone_in_file_is_clamped(self):
         cal = calibrated()

@@ -68,7 +68,7 @@ def grab_screenshot(display: str, size: tuple | None = None):
 
 
 class HiddenScreen:
-    def __init__(self, display: str = ":5", size: tuple = (1280, 720), mode: str = "xephyr",
+    def __init__(self, display: str = ":5", size: tuple = (1920, 1080), mode: str = "xephyr",
                  glamor: bool = False) -> None:
         if is_main_desktop(display):
             raise DisplayError("The hidden screen must not be your main desktop (%s). Use :5." % display)

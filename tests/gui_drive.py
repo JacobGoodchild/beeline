@@ -97,6 +97,7 @@ pump(1.5)
 for wid in subprocess.run(["xdotool", "search", "--name", "Beeline hidden screen"], capture_output=True,
                           text=True).stdout.split():
     subprocess.run(["xdotool", "windowmove", wid, "1100", "0"])
+app.testing = None
 check(not errors, "hidden screen started")
 state_file = os.path.join(os.environ["BEELINE_DATA"], "game.json")
 game = subprocess.Popen([sys.executable, os.path.join(ROOT, "beeline.py"), "--fake-game", "--fast",
@@ -109,49 +110,44 @@ check(not errors and app.last_img is not None, "game window found and preview sh
 # ---- Setup tab, step by step, using the real canvas events
 app.children["!notebook"].select(1)
 pump(1)
-app.set_mode("bag")
-click(synth.BAG_LEFT)
-click(synth.BAG_RIGHT)
-app.capture_bag("empty")
-check(app.cal.bag_ready(), "bag meter captured (%s)" % app.step_status["bag"].get())
-app.set_mode("eprompt")
-drag(synth.EPROMPT_BOX)
-app.set_mode("balloon_box")
-drag(synth.BALLOON_BOX)
-app.capture_balloon(True)          # the fake hive starts with a balloon
-app.set_test("eprompt")
+
+
+def wait_test(what, word, seconds=8):
+    """Press a Test button and wait for its (OCR-based) answer to contain `word`."""
+    app.set_test(what)
+    app._last_test = 0
+    end = time.time() + seconds
+    while time.time() < end:
+        pump(0.3)
+        if word in app.test_text.get():
+            return True
+    return False
+
+
+# Nothing needs calibrating any more: the defaults come from Jacob's screenshots.
+check(wait_test("eprompt", "'Make Honey'"), "banner test at the hive: %s" % app.test_text.get())
+check(wait_test("bag", "Bag reads"), "bag test: %s" % app.test_text.get())
 shot("02-setup-at-hive")
-check("SEEN" in app.test_text.get(), "E-prompt test says SEEN (%s)" % app.test_text.get())
 
 app.start_recording("hive_to_field")
 hold_key("d", 5.0)
 app.stop_recording()
 check("Hive to field: 5" in app.step_status["routes"].get(), "route recorded: " + app.step_status["routes"].get())
 pump(1)
-app.set_mode("field")
-drag(synth.FIELD_BOX)
 # Jacob places his Saturator by hand for the sample (the test presses 2 the way a person would;
 # Beeline itself can only press 2 through place_sprinkler)
 subprocess.run(["xdotool", "key", "2"], env={"DISPLAY": app.settings.display, "PATH": os.environ["PATH"]})
 pump(1.5)
-app.set_mode("saturator")
-drag((610, 370, 60, 60))
-app.set_test("saturator")
+check(wait_test("saturator", "SEEN"), "Saturator test: %s" % app.test_text.get())
 shot("03-setup-in-field")
-check("SEEN" in app.test_text.get(), "Saturator test says SEEN (%s)" % app.test_text.get())
-app.set_test("field")
-pump(1)
-check("YES" in app.test_text.get(), "field test says YES (%s)" % app.test_text.get())
+check(wait_test("field", "YES"), "field test in the field: %s" % app.test_text.get())
 
 app.start_recording("field_to_hive")
 hold_key("a", 5.0)
 app.stop_recording()
 pump(1.5)
-app.set_test("field")
-pump(1)
-check("no" in app.test_text.get(), "back at hive, field test says no (%s)" % app.test_text.get())
+check(wait_test("field", ": no"), "back at hive, field test: %s" % app.test_text.get())
 app.save_cal()
-check(app.cal.missing("Pine Tree Forest", True) == [], "calibration complete: %s" % app.cal.missing("Pine Tree Forest", True))
 
 # ---- Main tab: dry run first, then a real 2-minute run
 app.children["!notebook"].select(0)

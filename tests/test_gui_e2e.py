@@ -19,7 +19,7 @@ class GuiEndToEnd(unittest.TestCase):
     def test_drive_gui(self):
         data = tempfile.mkdtemp()
         shots = os.environ.get("BEELINE_SHOTS") or data
-        desk = subprocess.Popen(["Xvfb", ":21", "-screen", "0", "2400x1000x24"],
+        desk = subprocess.Popen(["Xvfb", ":21", "-screen", "0", "3100x1150x24"],
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
             time.sleep(1)

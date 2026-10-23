@@ -16,7 +16,7 @@ from beeline.safety import (  # noqa: E402
 
 def make_input(**kw):
     backend = RecordingBackend()
-    inp = SafeInput(backend, clock=FakeClock(), **kw)
+    inp = SafeInput(backend, (1280, 720), clock=FakeClock(), **kw)
     return inp, backend
 
 

@@ -31,8 +31,11 @@ class FakeGame:
         self.state_file = state_file
         self.root = tk.Tk()
         self.root.title("Beeline fake game")
-        self.root.geometry("1280x720+0+0")
-        self.canvas = tk.Canvas(self.root, width=1280, height=720, highlightthickness=0)
+        # fill the hidden screen (normally 1920x1080), like Sober does after "Fit game"
+        W, H = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
+        self.world.size = (W, H)
+        self.root.geometry("%dx%d+0+0" % (W, H))
+        self.canvas = tk.Canvas(self.root, width=W, height=H, highlightthickness=0)
         self.canvas.pack()
         # Catch the world up to "now" before every input, so movement is exact to the
         # moment a key goes down or up (not rounded to the next drawn frame).
@@ -58,7 +61,7 @@ class FakeGame:
         if self.state_file and now - self.last_state > 0.2:
             self.last_state = now
             self.write_state()
-        self.root.after(80, self.frame)
+        self.root.after(200, self.frame)
 
     def write_state(self) -> None:
         w = self.world

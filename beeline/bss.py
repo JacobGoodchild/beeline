@@ -239,8 +239,12 @@ class Reader:
         if parsed:
             cur, cap = parsed
             pct = 100.0 * cur / cap
-            disagree = abs(pct - bar) > 10
-            return Bag(pct, cur, cap, bar, "ocr+bar", disagree, gathering)
+            gap = abs(pct - bar)
+            if gap > 4:
+                # OCR can drop a leading group ("348,365" for "2,348,365") and still look
+                # valid, so when the two disagree the bar wins.  A huge gap = something's wrong.
+                return Bag(bar, None, cap, bar, "bar (ocr disagreed: %.1f%%)" % pct, gap > 20, gathering)
+            return Bag(pct, cur, cap, bar, "ocr+bar", False, gathering)
         return Bag(bar, None, None, bar, "bar", False, gathering)
 
     # -- banner / feed ----------------------------------------------------------

@@ -92,6 +92,8 @@ class Runner:
         self.dry = bool(settings.dry_run)
         self.dry_notes: list = []
         self.dry_report = ""
+        self._disagree = 0
+        self._wrong_field = 0
 
     # ------------------------------------------------------------------ helpers
     def status(self, text: str) -> None:
@@ -172,10 +174,17 @@ class Runner:
             self.inp.sleep(min(1.0, end - self.clock.now()))
 
     def bag(self, img) -> float:
-        b = self.senses.bag_percent(img)
-        if b is None:
-            raise StopMacro("Bag meter isn't calibrated")
-        return b
+        b = self.senses.bag(img)
+        if b.percent is None:
+            raise StopMacro("Stopped: couldn't read the bag (pollen bar)")
+        if b.disagree:
+            self._disagree += 1
+            log.warning("bag reading: numbers and bar disagree a lot (%s)", b.source)
+            if self._disagree >= 3:
+                self.fail("Stopped: bag reading makes no sense (the numbers and the bar disagree)")
+        else:
+            self._disagree = 0
+        return b.percent
 
     # ------------------------------------------------------------------ run
     def run(self) -> str:
@@ -234,9 +243,9 @@ class Runner:
             return None
 
     def preflight(self) -> None:
-        missing = self.cal.missing(self.s.field, True)
-        if missing:
-            raise StopMacro("Setup isn't finished. Still needed: " + ", ".join(missing))
+        if not self.senses.ocr_ready():
+            raise StopMacro("The text reader (Tesseract) isn't installed, so Beeline can't read the "
+                            "Make Honey banner or the pollen numbers. Run: sudo apt install tesseract-ocr")
         for name in ("hive_to_field", "field_to_hive"):
             r = self.routes.get(name)
             if r is None or not r.events:
@@ -248,13 +257,14 @@ class Runner:
         self.safety_check(img)
         if self.dry:
             seen = self.senses.look(img)
-            self.dry_report = "E-prompt %s (match %d%%), bag %d%%, field check says %s, Saturator %s" % (
-                "SEEN" if seen.eprompt else "NOT seen", seen.eprompt_score * 100, seen.bag or 0,
-                "in the field" if seen.in_field else "not in the field",
+            self.dry_report = "banner %s, bag %d%% (%s), field check: %s, Saturator %s" % (
+                {"make_honey": "'Make Honey'", "collect": "'Collect Pollen' (at hive, nothing to convert)",
+                 "cannon": "'Fire the Red Cannon' (NOT the hive)"}.get(seen.banner, "not readable"),
+                seen.bag or 0, seen.bag_source, seen.in_field_reason,
                 "visible" if seen.saturator else "not visible")
             log.info("[dry run] start check: %s", self.dry_report)
-        if not self.senses.eprompt_visible(img):
-            self.fail("Couldn't see the 'Make Honey' E-prompt. Stand on your hive pad, then press Start.")
+        if not self.senses.at_hive(img):
+            self.fail("Couldn't see the 'Make Honey' prompt. Stand on your hive pad, then press Start.")
 
     def _run(self) -> None:
         self.status("Checking everything is ready")
@@ -310,7 +320,7 @@ class Runner:
     def walk_to_hive(self) -> None:
         self.inp.mouse_up()
         self.recentre()
-        self._walk(self.routes["field_to_hive"], "Walking to hive", self.senses.eprompt_visible,
+        self._walk(self.routes["field_to_hive"], "Walking to hive", self.senses.at_hive,
                    "Stopped: walking home took too long (no Make Honey prompt)")
 
     # ------------------------------------------------------------------ Saturator
@@ -365,7 +375,7 @@ class Runner:
             self.anchor = (b.cx, b.cy)
             log.info("Saturator anchor on screen at (%.0f, %.0f)", b.cx, b.cy)
 
-    def drift_correction(self, img, tol_x: float = 50, tol_y: float = 40) -> list:
+    def drift_correction(self, img, tol_x: float = 0.039, tol_y: float = 0.056) -> list:
         """Moves that bring us back towards the Saturator.  Screen right = 'd', screen
         up (further ahead with shift lock) = 'w'.  Moves are proportional to how far off
         we are, so repeated small corrections settle on the spot."""
@@ -374,13 +384,14 @@ class Runner:
         b = self.senses.saturator(img)
         if b is None or not b.visible(self.cal.saturator_min_count):
             return []
-        dx = b.cx - self.anchor[0]
-        dy = b.cy - self.anchor[1]
+        W, H = img.size   # work in fractions of the screen, so any size works
+        dx = (b.cx - self.anchor[0]) / W
+        dy = (b.cy - self.anchor[1]) / H
         moves = []
         if abs(dx) > tol_x:
-            moves.append(("d" if dx > 0 else "a", min(0.8, abs(dx) / 300.0)))
+            moves.append(("d" if dx > 0 else "a", min(0.8, abs(dx) * 4.3)))
         if abs(dy) > tol_y:
-            moves.append(("w" if dy < 0 else "s", min(0.8, abs(dy) / 200.0)))
+            moves.append(("w" if dy < 0 else "s", min(0.8, abs(dy) * 3.6)))
         return moves
 
     def recentre(self, max_steps: int = 6) -> None:
@@ -388,7 +399,7 @@ class Runner:
         recorded from (next to the Saturator), so the walk ends on the hive pad."""
         for _ in range(max_steps):
             img = self.look()
-            moves = self.drift_correction(img, tol_x=12, tol_y=10)
+            moves = self.drift_correction(img, tol_x=0.0094, tol_y=0.014)
             if not moves:
                 return
             for key, secs in moves:
@@ -447,6 +458,13 @@ class Runner:
             self.fail("Stopped: bag reading makes no sense (%d%% -> %d%%)" % (last, bag))
 
     def check_still_in_field(self, img) -> None:
+        other = self.senses.wrong_field(img)
+        if other:
+            self._wrong_field += 1
+            if self._wrong_field >= 2:
+                self.fail("Stopped: the notifications say I'm gathering in %s, not %s" % (other, self.s.field))
+        else:
+            self._wrong_field = 0
         if self.senses.in_field(img):
             self._outside_field_checks = 0
             return
@@ -457,9 +475,15 @@ class Runner:
     # ------------------------------------------------------------------ converting
     def convert(self) -> None:
         img = self.look()
-        if not self.dry and not self.senses.eprompt_visible(img):
-            raise StopMacro("Stopped: not on the hive pad (no Make Honey prompt)")
+        banner = self.senses.banner(img)
         start_bag = self.bag(img)
+        if banner == "collect" and start_bag <= BAG_EMPTY_PCT and not self.dry:
+            log.info("nothing to convert (banner says Collect Pollen)")
+            self.wait_for_balloon()
+            return
+        # E is ONLY ever pressed when the banner says "Make Honey" (not the cannon, not anything else)
+        if not self.dry and banner != "make_honey":
+            raise StopMacro("Stopped: not on my hive pad (the banner doesn't say Make Honey)")
         self.status("Converting bag (%d%%)" % start_bag)
         self.inp.tap("e")  # once - pressing again can toggle converting off
         t0 = self.clock.now()
@@ -490,28 +514,30 @@ class Runner:
 
     def wait_for_balloon(self) -> None:
         """Always wait for the hive balloon to finish converting before leaving the hive.
-        Leaving early is a known duplication glitch, so this is never skipped.  If it
-        takes too long we STOP at the hive (we never walk off mid-conversion)."""
+        Leaving early is a known duplication glitch, so this is never skipped.  "Done" means
+        pollen reads 0 AND the banner says "Collect Pollen..." (or the notifications say the
+        hive balloon granted/refreshed the Balloon Blessing), twice in a row.  Balloons on
+        screen don't count: neighbours' balloons are always there.  If it takes too long we
+        STOP at the hive (we never walk off mid-conversion)."""
         self.status("Converting balloon")
         t0 = self.clock.now()
-        gone_count = 0
+        done_count = 0
         limit = self.s.balloon_max_wait_min * 60
         checks = 0
         while True:
             checks += 1
             if self.dry and checks > 3:
-                log.info("[dry run] balloon reads %r; not waiting longer", self.senses.balloon_state(self.look()))
+                log.info("[dry run] not waiting for the balloon (nothing was really pressed)")
                 return
             img = self.look()
             self.safety_check(img)
-            state = self.senses.balloon_state(img)
-            gone_count = gone_count + 1 if state == "gone" else 0
-            if gone_count >= 3:
-                log.info("hive balloon converted (%.0f s)", self.clock.now() - t0)
+            done_count = done_count + 1 if self.senses.converting_done(img) else 0
+            if done_count >= 2:
+                log.info("bag and hive balloon converted (%.0f s)", self.clock.now() - t0)
                 return
             if self.clock.now() - t0 > limit:
                 raise StopMacro("Stopped at the hive: the balloon was still converting after %d minutes. "
                                 "Nothing was lost; the macro just won't leave mid-balloon."
                                 % self.s.balloon_max_wait_min)
-            self.status("Converting balloon (%s, %d s)" % (state, self.clock.now() - t0))
+            self.status("Converting balloon (%d s)" % (self.clock.now() - t0))
             self.wait(CHECK_EVERY)

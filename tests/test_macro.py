@@ -187,14 +187,6 @@ class StopConditionTests(unittest.TestCase):
         self.assertStopped(sim, reason, "make honey")
         self.assertEqual(sim.world.keys_log, [])
 
-    def test_missing_calibration(self):
-        sim = Sim(minutes=30)
-        sim.runner.cal = Calibration()
-        sim.runner.senses.cal = sim.runner.cal
-        reason = sim.run()
-        self.assertIn("setup isn't finished", reason.lower())
-        self.assertEqual(sim.world.keys_log, [])
-
     def test_missing_route(self):
         sim = Sim(minutes=30)
         sim.runner.routes = {"hive_to_field": fake_routes()["hive_to_field"]}
@@ -249,41 +241,87 @@ class StopConditionTests(unittest.TestCase):
 
 
 class DryRunTests(unittest.TestCase):
-    def test_dry_run_reports_missing_eprompt(self):
-        cal = calibrated()
-        clock = FakeClock()
+    def dry_sim(self, **world_kw):
+        sim = Sim(minutes=30, dry_run=True)
         backend = RecordingBackend()
-        inp = SafeInput(backend, clock=clock, zone=cal.zone(), dry_run=True)
-        s = Settings(run_hours=0, run_minutes=30, dry_run=True)
-        tick = [0]
-
-        def screen():
-            tick[0] += 1
-            return synth.draw_scene(eprompt=False, tick=tick[0])
-        reason = Runner(s, cal, inp, screen, fake_routes(), clock=clock).run()
-        self.assertIn("E-prompt NOT seen", reason)
-        self.assertIn("Would have stopped because", reason)
+        sim.inp.backend = backend
+        for k, v in world_kw.items():
+            setattr(sim.world, k, v)
+        return sim, backend
 
     def test_dry_run_presses_nothing_real(self):
-        cal = calibrated()
-        clock = FakeClock()
-        backend = RecordingBackend()
-        inp = SafeInput(backend, clock=clock, zone=cal.zone(), dry_run=True)
-        s = Settings(run_hours=0, run_minutes=30, dry_run=True)
-        tick = [0]
-
-        def screen():
-            tick[0] += 1
-            return synth.draw_scene(eprompt=True, tick=tick[0])
-        runner = Runner(s, cal, inp, screen, fake_routes(), clock=clock)
-        reason = runner.run()
+        sim, backend = self.dry_sim()
+        sim.world.bag = 40
+        reason = sim.run()
         self.assertIn("dry run finished", reason.lower())
-        self.assertIn("E-prompt SEEN", reason)
+        self.assertIn("'Make Honey'", reason)
         self.assertIn("No problems found", reason)
+        self.assertEqual(sim.world.keys_log, [], "nothing reached the game")
         self.assertNotIn(("keydown", "2"), backend.events)
-        # it rehearsed the walk and the convert press
-        self.assertIn(("keydown", "d"), backend.events)
-        self.assertIn(("keydown", "e"), backend.events)
+        self.assertIn(("keydown", "d"), backend.events)   # it rehearsed the walk
+        self.assertIn(("keydown", "e"), backend.events)   # and the convert press
+
+    def test_dry_run_reports_not_at_hive(self):
+        sim, backend = self.dry_sim(x=10.0)
+        reason = sim.run()
+        self.assertIn("Would have stopped because", reason)
+        self.assertIn("Make Honey", reason)
+
+
+class RealGameRuleTests(unittest.TestCase):
+    def test_no_ocr_stops_before_pressing_anything(self):
+        sim = Sim(minutes=30)
+        sim.runner.senses.reader.use_ocr = False
+        reason = sim.run()
+        self.assertIn("tesseract", reason.lower())
+        self.assertEqual(sim.world.keys_log, [])
+
+    def test_e_never_pressed_at_the_cannon(self):
+        sim = Sim(minutes=30)
+        sim.world.bag = 50
+        sim.world.banner = lambda: "cannon" if sim.world.on_pad() else ""
+        sim.world.fake_ocr_orig = sim.world.fake_ocr
+
+        def ocr(img, kind):
+            if kind == "banner" and sim.world.on_pad():
+                return "Fire the Red Cannon"
+            return sim.world.fake_ocr_orig(img, kind)
+        sim.runner.senses.reader.ocr_text = ocr
+        reason = sim.run()
+        self.assertIn("make honey", reason.lower())
+        self.assertEqual(sim.world.e_presses, 0)
+        self.assertNotIn("e", [n for (_, n) in sim.world.keys_log])
+
+    def test_wrong_field_in_notifications_stops(self):
+        sim = Sim(minutes=30)
+        sim.world.wrong_field = True
+        reason = sim.run()
+        self.assertIn("sunflower field", reason.lower())
+        self.assertFalse(keys_held_at_end(sim))
+
+    def test_nothing_to_convert_at_start_means_no_e_press(self):
+        sim = Sim(minutes=1)
+        sim.world.balloon = 0
+        sim.world.fill_rate = 0.0   # never fills: trips end on the time limit with an empty bag
+        sim.world.balloon_growth = 0.0
+        reason = sim.run()
+        self.assertTrue(reason.startswith("Finished"), reason)
+        self.assertEqual(sim.world.e_presses, 0, "banner said Collect Pollen, so E was never needed")
+
+    def test_capacity_changes_between_field_and_hive(self):
+        sim = Sim(minutes=10)
+        caps = set()
+        orig = sim.world.fake_ocr
+
+        def ocr(img, kind):
+            t = orig(img, kind)
+            if kind == "pollen":
+                caps.add(t.split("/")[1].split("(")[0])
+            return t
+        sim.runner.senses.reader.ocr_text = ocr
+        reason = sim.run()
+        self.assertTrue(reason.startswith("Finished"), reason)
+        self.assertGreaterEqual(len(caps), 2, caps)
 
 
 if __name__ == "__main__":

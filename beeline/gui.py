@@ -24,13 +24,14 @@ from .routes import ROUTE_NAMES, Route, RouteRecorder
 from .safety import (ALLOWED_KEYS, InputRefused, RecordingBackend, SafeInput, SafeZone,
                      XdotoolBackend)
 from .senses import Senses
+from . import bss
 from .tkimage import to_photo
 
 log = logging.getLogger("beeline.gui")
 
 W, H = SCREEN_SIZE
-MAIN_SCALE = 0.375   # 480 x 270 preview on the Main tab
-SETUP_SCALE = 0.5    # 640 x 360 preview on the Setup tab
+MAIN_SCALE = 0.25    # 480 x 270 preview on the Main tab
+SETUP_SCALE = 1 / 3  # 640 x 360 preview on the Setup tab
 
 # Tk key names -> Beeline key names (only allowlisted keys; anything else is ignored)
 TK_KEYS = {"w": "w", "a": "a", "s": "s", "d": "d", "space": "space", "e": "e",
@@ -247,24 +248,22 @@ class App(tk.Tk):
             for text, cmd in items:
                 ttk.Button(r, text=text, command=cmd).pack(side="left", padx=1)
 
-        s = step("bag", "A. Bag (pollen) meter")
-        btns(s, ("Click its two ends", lambda: self.set_mode("bag")),
-             ("Bag is EMPTY now: capture", lambda: self.capture_bag("empty")))
-        btns(s, ("Bag is FULL now: capture (optional)", lambda: self.capture_bag("full")),
-             ("Test it", lambda: self.set_test("bag")))
-        s = step("eprompt", "B. Make Honey E-prompt")
-        btns(s, ("Drag a box around it", lambda: self.set_mode("eprompt")), ("Test it", lambda: self.set_test("eprompt")))
-        s = step("balloon", "C. Hive balloon")
-        btns(s, ("Drag a box where it floats", lambda: self.set_mode("balloon_box")))
-        btns(s, ("Balloon is THERE: capture", lambda: self.capture_balloon(True)),
-             ("Balloon GONE: capture", lambda: self.capture_balloon(False)))
-        btns(s, ("Test it", lambda: self.set_test("balloon")))
+        s = step("bag", "A. Bag (pollen) numbers and bar")
+        btns(s, ("Test it", lambda: self.set_test("bag")),
+             ("Fine-tune: click the bar's two ends", lambda: self.set_mode("bag")))
+        s = step("eprompt", "B. Banner (Make Honey / cannon / Collect Pollen)")
+        btns(s, ("Test it", lambda: self.set_test("eprompt")))
+        s = step("balloon", "C. Converting finished (bag + hive balloon)")
+        btns(s, ("Test it", lambda: self.set_test("balloon")),
+             ("Optional: box in front of MY pad", lambda: self.set_mode("balloon_box")))
+        btns(s, ("My balloon THERE: capture", lambda: self.capture_balloon(True)),
+             ("My balloon GONE: capture", lambda: self.capture_balloon(False)))
         s = step("saturator", "D. Supreme Saturator")
-        btns(s, ("Drag a box around it", lambda: self.set_mode("saturator")), ("Test it", lambda: self.set_test("saturator")))
+        btns(s, ("Test it", lambda: self.set_test("saturator")),
+             ("Fine-tune: drag a box around it", lambda: self.set_mode("saturator")))
         btns(s, ("Add another sample (e.g. at night)", lambda: self.set_mode("saturator_add")))
-        s = step("field", "E. Field ground (stand in the middle of the field)")
-        btns(s, ("Drag a box over the flowers", lambda: self.set_mode("field")), ("Test it", lambda: self.set_test("field")))
-        btns(s, ("Add another sample (e.g. at night)", lambda: self.set_mode("field_add")))
+        s = step("field", "E. In Pine Tree Forest?")
+        btns(s, ("Test it", lambda: self.set_test("field")))
         s = step("zone", "F. Click-safe zone (green box)")
         btns(s, ("Drag a smaller box", lambda: self.set_mode("zone")), ("Reset to default", self.reset_zone))
         s = step("routes", "G. Routes for your hive slot")
@@ -549,57 +548,73 @@ class App(tk.Tk):
         what = getattr(self, "testing", None)
         if not what:
             return
+        # reading text (OCR) takes a moment, so only re-test every 1.5 seconds
+        now = time.monotonic()
+        if now - getattr(self, "_last_test", 0) < 1.5 and getattr(self, "_last_test_what", None) == what:
+            self._draw_test_marks(d)
+            return
+        self._last_test, self._last_test_what = now, what
         senses = Senses(self.cal, self.v_field.get())
+        self._marks = []
         try:
+            if not senses.ocr_ready() and what in ("bag", "eprompt", "all", "field"):
+                self.test_text.set("The text reader isn't installed. Run: sudo apt install tesseract-ocr "
+                                   "(the bar and Saturator still work without it)")
             if what == "bag":
-                p = senses.bag_percent(img)
-                self.test_text.set("Bag reads: %s" % ("not calibrated" if p is None else "%d%%" % p))
+                b = senses.bag(img)
+                self.test_text.set("Bag reads: %s   (numbers: %s, bar: %d%%)%s" % (
+                    "?" if b.percent is None else "%.1f%%" % b.percent,
+                    "{:,}/{:,}".format(b.current, b.capacity) if b.current is not None else "not read",
+                    b.bar_percent or 0, "   NUMBERS AND BAR DISAGREE" if b.disagree else ""))
             elif what == "eprompt":
-                m = senses.eprompt(img)
-                if m is None:
-                    self.test_text.set("E-prompt: not captured yet")
-                else:
-                    seen = m.found(self.cal.eprompt_threshold)
-                    self.test_text.set("E-prompt: %s (match %.0f%%, needs %.0f%%)"
-                                       % ("SEEN" if seen else "not seen", m.score * 100, self.cal.eprompt_threshold * 100))
+                banner = senses.banner(img)
+                self.test_text.set("Banner: %s" % {
+                    "make_honey": "'Make Honey' (on my hive pad, OK to press E)",
+                    "collect": "'Collect Pollen...' (at the hive, nothing left to convert)",
+                    "cannon": "'Fire the Red Cannon' (NOT the hive: E won't be pressed)",
+                    "": "nothing readable"}[banner])
             elif what == "balloon":
-                self.test_text.set("Hive balloon: %s" % senses.balloon_state(img))
+                self.test_text.set("Converting finished: %s   |   my balloon spot (optional): %s" % (
+                    "YES" if senses.converting_done(img) else "no", senses.balloon_state(img)))
             elif what == "saturator":
                 b = senses.saturator(img)
-                if b is None:
-                    self.test_text.set("Saturator: not captured yet")
-                else:
-                    vis = b.visible(self.cal.saturator_min_count)
-                    self.test_text.set("Saturator: %s (%d matching dots, needs %d)"
-                                       % ("SEEN (red cross)" if vis else "not seen", b.count, self.cal.saturator_min_count))
-                    if vis:
-                        d.line((b.cx - 20, b.cy, b.cx + 20, b.cy), fill=(255, 0, 0), width=4)
-                        d.line((b.cx, b.cy - 20, b.cx, b.cy + 20), fill=(255, 0, 0), width=4)
+                self.test_text.set("Saturator: %s" % ("SEEN (red cross), size %dx%d" % (b.w, b.h)
+                                                        if b.visible() else "not seen"))
+                if b.visible():
+                    self._marks = [(b.cx, b.cy)]
             elif what == "all":
                 s = senses.look(img)
                 self.test_text.set(
-                    "Bag: %s   |   E-prompt: %s   |   Balloon: %s   |   Saturator: %s   |   In field: %s   |   "
-                    "Disconnect box: %s" % (
-                        "-" if s.bag is None else "%d%%" % s.bag,
-                        "-" if s.eprompt is None else ("SEEN" if s.eprompt else "no"),
-                        s.balloon, "SEEN" if s.saturator else "no",
-                        "-" if s.in_field is None else ("YES" if s.in_field else "no"),
-                        "YES" if s.dialog else "no"))
+                    "Bag: %s (%s)  |  Banner: %s  |  Converting done: %s  |  Saturator: %s  |  "
+                    "In field: %s (%s)  |  Disconnect box: %s" % (
+                        "-" if s.bag is None else "%.1f%%" % s.bag, s.bag_source, s.banner or "-",
+                        "YES" if s.converting_done else "no", "SEEN" if s.saturator else "no",
+                        "YES" if s.in_field else "no", s.in_field_reason, "YES" if s.dialog else "no"))
+                if s.saturator:
+                    self._marks = [s.saturator_xy]
             elif what == "field":
-                sc = senses.field_score(img)
-                self.test_text.set("In %s: %s (looks %.0f%% like it, needs %.0f%%)"
-                                   % (senses.field_name, "YES" if sc >= self.cal.field_threshold else "no",
-                                      sc * 100, self.cal.field_threshold * 100))
+                ok, why = senses.field_confirmed(img)
+                blue, green = senses.reader.ground_scores(img)
+                self.test_text.set("In %s: %s (%s; blue flowers %.0f%%, green %.0f%%)" % (
+                    senses.field_name, "YES" if ok else "no", why, blue * 100, green * 100))
         except Exception as e:
             self.test_text.set("Test failed: %s" % e)
+        self._draw_test_marks(d)
+
+    def _draw_test_marks(self, d) -> None:
+        r = int(W * 0.015)
+        for (x, y) in getattr(self, "_marks", []):
+            d.line((x - r, y, x + r, y), fill=(255, 0, 0), width=6)
+            d.line((x, y - r, x, y + r), fill=(255, 0, 0), width=6)
 
     # ================================================================ setup: capturing
     HELP = {
-        "bag": "Click the LEFT end of the bag bar, then the RIGHT end (click near the bottom edge of the bar, "
-               "below the numbers). Then capture with the bag empty.",
+        "bag": "Click the LEFT end of the pollen bar, then the RIGHT end. Click near the bottom edge of "
+               "the bar, below the numbers.",
         "eprompt": "Stand on your hive pad so the E 'Make Honey' prompt shows, then drag a box tightly around it.",
-        "balloon_box": "Drag a box around where your hive balloon floats (near your hive).",
-        "saturator": "Stand next to your placed Saturator, then drag a box around its neon-blue bear head.",
+        "balloon_box": "Optional. Drag a small box just in front of YOUR pad where your own balloon floats "
+                       "(not the neighbours' balloons).",
+        "saturator": "Stand next to your placed Saturator, then drag a box around its neon-cyan bear head.",
         "field": "Stand in the middle of the field, then drag a box over the flowers around your character "
                  "(avoid the bag bar and buttons).",
         "saturator_add": "Extra sample: stand next to your Saturator (e.g. at night) and drag a box around its "
@@ -626,8 +641,11 @@ class App(tk.Tk):
             if len(self.bag_pts) == 2:
                 l, r = sorted(self.bag_pts)
                 self.cal.bag_left, self.cal.bag_right = list(l), list(r)
-                self.setup_help.set("Got both ends. Now, with the bag EMPTY, press 'Bag is EMPTY now: capture'.")
+                if self.last_img is not None:
+                    self.cal.capture_bag(self.last_img, l, r)
+                self.setup_help.set("Bar position fine-tuned. Press 'Test it' to check the reading.")
                 self.mode = None
+                self.refresh_setup_status()
             else:
                 self.setup_help.set("Now click the RIGHT end of the bag bar.")
             return
@@ -710,12 +728,14 @@ class App(tk.Tk):
         c = self.cal
         fieldname = self.v_field.get() if hasattr(self, "v_field") else FIELDS[0]
         ok = lambda b: "done" if b else "NOT DONE"
-        self.step_status["bag"].set("Status: %s%s" % (ok(c.bag_ready()), " (+ full colour)" if c.bag_fill_colour else ""))
-        self.step_status["eprompt"].set("Status: " + ok(c.eprompt_ready()))
-        self.step_status["balloon"].set("Status: there=%s, gone=%s" % (
-            ok(c.balloon_present_img is not None), ok(c.balloon_gone_img is not None)))
-        self.step_status["saturator"].set("Status: %s (%d sample(s))" % (ok(c.saturator_ready()), len(c.saturator_colours())))
-        self.step_status["field"].set("Status: %s (%d sample(s))" % (ok(c.field_ready(fieldname)), len(c.field_samples(fieldname))))
+        default = "Uses the defaults from your screenshots"
+        self.step_status["bag"].set("fine-tuned" if c.layout.get("pollen_bar") else default)
+        self.step_status["eprompt"].set(default + (" (reads text: OK)" if bss.ocr_available()
+                                                   else ". NEEDS: sudo apt install tesseract-ocr"))
+        self.step_status["balloon"].set(default + ("; my balloon spot: there=%s, gone=%s" % (
+            ok(c.balloon_present_img is not None), ok(c.balloon_gone_img is not None)) if c.balloon_box else ""))
+        self.step_status["saturator"].set("fine-tuned (hue %s)" % (c.saturator_hue,) if c.saturator_hue else default)
+        self.step_status["field"].set(default)
         z = c.zone()
         self.step_status["zone"].set("Zone: %.0f%%-%.0f%% across, %.0f%%-%.0f%% down"
                                      % (z.left * 100, z.right * 100, z.top * 100, z.bottom * 100))

@@ -1,96 +1,127 @@
-"""What the macro can 'see', using the calibration.  Each method takes a screenshot."""
+"""What the macro can 'see'.  Built on bss.Reader (the real Bee Swarm layout, defaults
+from Jacob's screenshots) plus optional fine-tuning from calibration.
+
+Each method takes a screenshot.  Results for the same screenshot are cached, because
+the main loop asks several questions about one look and OCR takes a moment.
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from . import vision
+from . import bss, vision
 from .config import Calibration
 
 
 @dataclass
 class Seen:
-    """One look at the screen, summarised.  Handy for logs and the GUI's Test buttons."""
+    """One look at the screen, summarised (for logs, dry runs and the Test buttons)."""
     bag: float | None = None
-    eprompt: bool | None = None
-    eprompt_score: float = 0.0
-    balloon: str = "unknown"
+    bag_source: str = ""
+    pollen_text: str = ""
+    banner: str = ""
+    feed_field: str | None = None
+    converting_done: bool = False
     saturator: bool = False
     saturator_xy: tuple = (-1.0, -1.0)
-    in_field: bool | None = None
-    field_score: float = 0.0
+    ground_blue_field: bool = False
+    in_field: bool = False
+    in_field_reason: str = ""
+    balloon: str = "unknown"
     dialog: bool = False
 
 
 class Senses:
-    def __init__(self, cal: Calibration, field_name: str = "Pine Tree Forest") -> None:
+    def __init__(self, cal: Calibration, field_name: str = "Pine Tree Forest",
+                 reader: bss.Reader | None = None) -> None:
         self.cal = cal
         self.field_name = field_name
+        self.reader = reader or bss.Reader(layout=getattr(cal, "layout", None) or None)
+        if getattr(cal, "saturator_hue", None):
+            self.reader.sat_hue = tuple(cal.saturator_hue)
+        self._img = None
+        self._cache: dict = {}
+
+    def ocr_ready(self) -> bool:
+        return self.reader.use_ocr
+
+    def _cached(self, img, key, fn):
+        if img is not self._img:
+            self._img = img
+            self._cache = {}
+        if key not in self._cache:
+            self._cache[key] = fn()
+        return self._cache[key]
+
+    # -- bag ---------------------------------------------------------------------
+    def bag(self, img) -> bss.Bag:
+        return self._cached(img, "bag", lambda: self.reader.bag(img))
 
     def bag_percent(self, img) -> float | None:
-        c = self.cal
-        if not c.bag_ready():
-            return None
-        return vision.read_bag_percent(img, tuple(c.bag_left), tuple(c.bag_right),
-                                       [tuple(x) for x in c.bag_empty_colours],
-                                       tuple(c.bag_fill_colour) if c.bag_fill_colour else None)
+        return self.bag(img).percent
 
-    def eprompt(self, img) -> vision.Match | None:
-        c = self.cal
-        if not c.eprompt_ready():
-            return None
-        return vision.match_template(img, c.eprompt_img, tuple(c.eprompt_box), margin=30)
+    # -- hive ---------------------------------------------------------------------
+    def banner(self, img) -> str:
+        return self._cached(img, "banner", lambda: self.reader.banner(img))
 
     def eprompt_visible(self, img) -> bool:
-        m = self.eprompt(img)
-        return bool(m and m.found(self.cal.eprompt_threshold))
+        """True only when the banner says "Make Honey" (NOT the cannon or anything else)."""
+        return self.banner(img) == "make_honey"
+
+    def at_hive(self, img) -> bool:
+        """On the hive pad: "Make Honey", or "Collect Pollen..." when there's nothing to convert."""
+        return self.banner(img) in ("make_honey", "collect")
+
+    def feed(self, img) -> str:
+        return self._cached(img, "feed", lambda: self.reader.feed(img))
 
     def balloon_state(self, img) -> str:
+        """Optional extra signal: the calibrated spot in front of MY pad only."""
         c = self.cal
         if not c.balloon_ready():
             return "unknown"
         return vision.classify_balloon(img, tuple(c.balloon_box), c.balloon_present_img, c.balloon_gone_img)
 
-    def saturator(self, img) -> vision.Blob | None:
-        c = self.cal
-        if not c.saturator_ready():
-            return None
-        best = None
-        for colour in c.saturator_colours():
-            b = vision.find_colour_blob(img, tuple(colour), c.saturator_tolerance)
-            if best is None or b.count > best.count:
-                best = b
-        return best
+    def converting_done(self, img) -> bool:
+        done = bss.converting_done(self.bag(img), self.banner(img), self.feed(img))
+        if done and self.balloon_state(img) == "present":
+            return False   # my own balloon is still there (only if Jacob calibrated that spot)
+        return done
+
+    # -- field ---------------------------------------------------------------------
+    def saturator(self, img) -> bss.Blob:
+        return self._cached(img, "sat", lambda: self.reader.saturator(img))
 
     def saturator_visible(self, img) -> bool:
-        b = self.saturator(img)
-        return bool(b and b.visible(self.cal.saturator_min_count))
-
-    def field_score(self, img) -> float:
-        c = self.cal
-        if not c.field_ready(self.field_name):
-            return 0.0
-        x, y, w, h = c.field_box
-        hist = vision.colour_histogram(img.crop((x, y, x + w, y + h)))
-        return max(vision.histogram_similarity(hist, sample) for sample in c.field_samples(self.field_name))
+        return self.saturator(img).visible()
 
     def in_field(self, img) -> bool:
-        return self.field_score(img) >= self.cal.field_threshold
+        """Arrival check: the ground looks like a blue field and the notifications don't
+        name a different field."""
+        if not self.reader.ground_is_blue_field(img):
+            return False
+        return not self.wrong_field(img)
+
+    def wrong_field(self, img) -> str | None:
+        named = bss.feed_field(self.feed(img))
+        return named if (named and named != self.field_name) else None
+
+    def field_confirmed(self, img) -> tuple:
+        return bss.in_field_check(self.reader, img, self.field_name, self.bag(img), self.feed(img))
 
     def look(self, img) -> Seen:
         s = Seen()
-        s.bag = self.bag_percent(img)
-        m = self.eprompt(img)
-        if m is not None:
-            s.eprompt_score = m.score
-            s.eprompt = m.found(self.cal.eprompt_threshold)
+        b = self.bag(img)
+        s.bag, s.bag_source = b.percent, b.source
+        if b.current is not None:
+            s.pollen_text = "{:,}/{:,}".format(b.current, b.capacity)
+        s.banner = self.banner(img)
+        s.feed_field = bss.feed_field(self.feed(img))
+        s.converting_done = self.converting_done(img)
+        blob = self.saturator(img)
+        s.saturator, s.saturator_xy = blob.visible(), (blob.cx, blob.cy)
+        s.ground_blue_field = self.reader.ground_is_blue_field(img)
+        s.in_field, s.in_field_reason = self.field_confirmed(img)
         s.balloon = self.balloon_state(img)
-        b = self.saturator(img)
-        if b is not None:
-            s.saturator = b.visible(self.cal.saturator_min_count)
-            s.saturator_xy = (b.cx, b.cy)
-        if self.cal.field_ready(self.field_name):
-            s.field_score = self.field_score(img)
-            s.in_field = s.field_score >= self.cal.field_threshold
         s.dialog = vision.looks_like_disconnect_dialog(img)
         return s
