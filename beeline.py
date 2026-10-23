@@ -15,6 +15,6 @@ else:
     except ImportError as e:
         print("Beeline couldn't start because something is missing:", e)
         print("Run this, then try again:")
-        print("  sudo apt install python3-tk python3-pil python3-pil.imagetk xdotool xserver-xephyr python3-xlib")
+        print("  sudo apt install python3-tk python3-pil xdotool xserver-xephyr python3-xlib")
         sys.exit(1)
     main()

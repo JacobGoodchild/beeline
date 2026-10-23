@@ -91,6 +91,17 @@ class SaturatorTests(unittest.TestCase):
         self.assertFalse(s.saturator_visible(synth.draw_scene(in_field=True)))
         self.assertFalse(s.saturator_visible(synth.draw_scene(in_field=False)))
 
+    def test_saturator_position_not_pulled_off_by_bubbles(self):
+        from PIL import ImageDraw
+        s = Senses(calibrated())
+        img = synth.draw_scene(in_field=True, saturator_at=(700, 330))
+        d = ImageDraw.Draw(img)
+        for (bx, by) in ((350, 500), (1000, 250), (1100, 520), (450, 260)):
+            d.ellipse((bx - 8, by - 8, bx + 8, by + 8), fill=synth.SATURATOR_COLOUR)  # bubbles
+        b = s.saturator(img)
+        self.assertAlmostEqual(b.cx, 700, delta=12)
+        self.assertAlmostEqual(b.cy, 330, delta=12)
+
     def test_saturator_in_ui_areas_ignored(self):
         s = Senses(calibrated())
         # only in the left panel area / hotbar: ignored

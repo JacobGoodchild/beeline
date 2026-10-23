@@ -176,7 +176,8 @@ class Blob:
 
 def find_colour_blob(img: Image.Image, colour: tuple, tolerance: float = 45.0,
                      scale: int = 4, area: tuple | None = None) -> Blob:
-    """Find pixels close to `colour`.  `area` (x0, y0, x1, y1) limits where to look, so the
+    """Find the biggest patch of pixels close to `colour` (so a few light-blue bubbles
+    elsewhere don't pull it off).  `area` (x0, y0, x1, y1) limits where to look, so the
     side panel / hotbar / top bar are ignored."""
     W, H = img.size
     if area is None:
@@ -184,19 +185,42 @@ def find_colour_blob(img: Image.Image, colour: tuple, tolerance: float = 45.0,
     x0, y0, x1, y1 = area
     crop = img.crop(area).convert("RGB")
     small = crop.resize((max(1, crop.size[0] // scale), max(1, crop.size[1] // scale)), Image.NEAREST)
-    sw = small.size[0]
-    n = 0
-    sx = sy = 0.0
+    sw, sh = small.size
     tr, tg, tb = colour
     tol2 = tolerance * tolerance
+    hits = set()
     for i, (r, g, b) in enumerate(small.getdata()):
         if (r - tr) ** 2 + (g - tg) ** 2 + (b - tb) ** 2 <= tol2:
-            n += 1
-            sx += i % sw
-            sy += i // sw
-    if n == 0:
+            hits.add(i)
+    best: list = []
+    seen = set()
+    for start in hits:
+        if start in seen:
+            continue
+        seen.add(start)
+        comp = [start]
+        stack = [start]
+        while stack:
+            i = stack.pop()
+            x, y = i % sw, i // sw
+            # neighbours up to 2 cells away, so a patch split by a thin line still counts as one
+            for dy in (-2, -1, 0, 1, 2):
+                for dx in (-2, -1, 0, 1, 2):
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < sw and 0 <= ny < sh:
+                        j = ny * sw + nx
+                        if j in hits and j not in seen:
+                            seen.add(j)
+                            comp.append(j)
+                            stack.append(j)
+        if len(comp) > len(best):
+            best = comp
+    if not best:
         return Blob(0, -1.0, -1.0)
-    return Blob(n, x0 + (sx / n + 0.5) * scale, y0 + (sy / n + 0.5) * scale)
+    n = len(best)
+    cx = sum(i % sw for i in best) / n
+    cy = sum(i // sw for i in best) / n
+    return Blob(n, x0 + (cx + 0.5) * scale, y0 + (cy + 0.5) * scale)
 
 
 # ---------------------------------------------------------------------------

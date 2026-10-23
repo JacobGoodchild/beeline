@@ -305,7 +305,7 @@ class Runner:
 
     def walk_to_hive(self) -> None:
         self.inp.mouse_up()
-        self.recentre(max_steps=4)
+        self.recentre()
         self._walk(self.routes["field_to_hive"], "Walking to hive", self.senses.eprompt_visible,
                    "Stopped: walking home took too long (no Make Honey prompt)")
 
@@ -361,9 +361,10 @@ class Runner:
             self.anchor = (b.cx, b.cy)
             log.info("Saturator anchor on screen at (%.0f, %.0f)", b.cx, b.cy)
 
-    def drift_correction(self, img) -> list:
+    def drift_correction(self, img, tol_x: float = 50, tol_y: float = 40) -> list:
         """Moves that bring us back towards the Saturator.  Screen right = 'd', screen
-        up (further ahead with shift lock) = 'w'."""
+        up (further ahead with shift lock) = 'w'.  Moves are proportional to how far off
+        we are, so repeated small corrections settle on the spot."""
         if not self.s.drift_compensation or self.anchor is None:
             return []
         b = self.senses.saturator(img)
@@ -372,20 +373,23 @@ class Runner:
         dx = b.cx - self.anchor[0]
         dy = b.cy - self.anchor[1]
         moves = []
-        if abs(dx) > 50:
+        if abs(dx) > tol_x:
             moves.append(("d" if dx > 0 else "a", min(0.8, abs(dx) / 300.0)))
-        if abs(dy) > 40:
+        if abs(dy) > tol_y:
             moves.append(("w" if dy < 0 else "s", min(0.8, abs(dy) / 200.0)))
         return moves
 
-    def recentre(self, max_steps: int = 4) -> None:
+    def recentre(self, max_steps: int = 6) -> None:
+        """Before walking home, stand as close as possible to where the route home was
+        recorded from (next to the Saturator), so the walk ends on the hive pad."""
         for _ in range(max_steps):
             img = self.look()
-            moves = self.drift_correction(img)
+            moves = self.drift_correction(img, tol_x=12, tol_y=10)
             if not moves:
                 return
             for key, secs in moves:
                 self.inp.hold(key, secs)
+            self.inp.sleep(0.3)  # let the camera settle before looking again
 
     # ------------------------------------------------------------------ gathering
     def gather(self) -> None:

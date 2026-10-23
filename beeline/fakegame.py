@@ -16,7 +16,7 @@ import sys
 import time
 import tkinter as tk
 
-from PIL import ImageTk
+from .tkimage import to_photo
 
 from .fakeworld import FakeWorld
 
@@ -34,19 +34,25 @@ class FakeGame:
         self.root.geometry("1280x720+0+0")
         self.canvas = tk.Canvas(self.root, width=1280, height=720, highlightthickness=0)
         self.canvas.pack()
-        self.root.bind("<KeyPress>", lambda e: self.world.key("keydown", e.keysym))
-        self.root.bind("<KeyRelease>", lambda e: self.world.key("keyup", e.keysym))
-        self.canvas.bind("<ButtonPress-1>", lambda e: self.world.mouse("down"))
-        self.canvas.bind("<ButtonRelease-1>", lambda e: self.world.mouse("up"))
+        # Catch the world up to "now" before every input, so movement is exact to the
+        # moment a key goes down or up (not rounded to the next drawn frame).
+        self.root.bind("<KeyPress>", lambda e: (self.catch_up(), self.world.key("keydown", e.keysym)))
+        self.root.bind("<KeyRelease>", lambda e: (self.catch_up(), self.world.key("keyup", e.keysym)))
+        self.canvas.bind("<ButtonPress-1>", lambda e: (self.catch_up(), self.world.mouse("down")))
+        self.canvas.bind("<ButtonRelease-1>", lambda e: (self.catch_up(), self.world.mouse("up")))
         self.last = time.monotonic()
         self.last_state = 0.0
         self.root.after(50, self.frame)
 
-    def frame(self) -> None:
+    def catch_up(self) -> None:
         now = time.monotonic()
         self.world.advance(now - self.last)
         self.last = now
-        self._photo = ImageTk.PhotoImage(self.world.screenshot())
+
+    def frame(self) -> None:
+        self.catch_up()
+        now = self.last
+        self._photo = to_photo(self.world.screenshot(), self.root)
         self.canvas.delete("all")
         self.canvas.create_image(0, 0, anchor="nw", image=self._photo)
         if self.state_file and now - self.last_state > 1.0:

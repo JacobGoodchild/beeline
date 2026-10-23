@@ -12,7 +12,7 @@ import time
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from PIL import Image, ImageDraw, ImageTk
+from PIL import Image, ImageDraw
 
 from . import display, logsetup
 from .config import FIELDS, LOGS_DIR, SCREEN_SIZE, Calibration, Settings
@@ -23,6 +23,7 @@ from .routes import ROUTE_NAMES, Route, RouteRecorder
 from .safety import (ALLOWED_KEYS, InputRefused, RecordingBackend, SafeInput, SafeZone,
                      XdotoolBackend)
 from .senses import Senses
+from .tkimage import to_photo
 
 log = logging.getLogger("beeline.gui")
 
@@ -470,7 +471,7 @@ class App(tk.Tk):
         if img is not None:
             self.last_img = img
             small = img.resize((int(W * MAIN_SCALE), int(H * MAIN_SCALE)), Image.BILINEAR)
-            self._main_photo = ImageTk.PhotoImage(small)
+            self._main_photo = to_photo(small, self)
             self.preview.delete("all")
             self.preview.create_image(0, 0, anchor="nw", image=self._main_photo)
             self._draw_setup_preview(img)
@@ -498,7 +499,7 @@ class App(tk.Tk):
                 d.rectangle((x, y, x + w, y + h), outline=col, width=2)
         self._update_test(img, d)
         small = over.resize((int(W * SETUP_SCALE), int(H * SETUP_SCALE)), Image.BILINEAR)
-        self._setup_photo = ImageTk.PhotoImage(small)
+        self._setup_photo = to_photo(small, self)
         self.setup_canvas.delete("img")
         self.setup_canvas.create_image(0, 0, anchor="nw", image=self._setup_photo, tags="img")
         self.setup_canvas.tag_lower("img")

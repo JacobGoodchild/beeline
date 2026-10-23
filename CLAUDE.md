@@ -230,3 +230,7 @@ Keep a **Progress log** section at the bottom of this file: what's done, what's 
   - "Test everything at once" button; extra day/night samples for the field and the Saturator; "Faster graphics" (Xephyr `-glamor`) tick box.
   - `make-shortcut.sh` adds Beeline to the Menu and Desktop.
   - "Medium" loop is now a 3-row snake (net zero movement, tested).
+  - GUI test found a real weakness: before walking home, the macro only re-centred on the Saturator to within 50 px, so small route errors could leave it just off the hive pad, and it stopped (safely) with "walking home took too long". It now re-centres to within ~12 px first. (I also fixed the fake game so movement follows the exact key timing.)
+  - The Saturator finder now uses the **biggest single patch** of its colour, so light-blue bubbles elsewhere can't pull the position off (tested).
+  - Images go to Tk as PPM data, so **python3-pil.imagetk is no longer needed**. This also avoids an old-Pillow + Tk 9 hang. The fake-game end to end now passes on Python 3.10 + Pillow 9.0.1 as well.
+  - Note: `screen_mode: "xvfb"` in settings.json gives a fully invisible hidden screen, but you can't click into it to join the game, so it's only useful for testing. It isn't shown in the GUI.

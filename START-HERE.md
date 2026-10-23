@@ -17,13 +17,13 @@ This guide assumes you've barely used a terminal. Wherever you see a grey box, c
 Paste this into the terminal:
 
 ```
-sudo apt update && sudo apt install -y git python3-tk python3-pil python3-pil.imagetk xdotool xserver-xephyr xvfb python3-xlib x11-utils
+sudo apt update && sudo apt install -y git python3-tk python3-pil xdotool xserver-xephyr xvfb python3-xlib x11-utils
 ```
 
 What each one is for:
 - **git**: downloads Beeline from GitHub.
 - **python3-tk**: lets Beeline show its window.
-- **python3-pil** and **python3-pil.imagetk**: let Beeline look at screenshots of the game.
+- **python3-pil**: lets Beeline look at screenshots of the game.
 - **xdotool**: sends key presses, but only to the hidden screen, never to your real desktop.
 - **xserver-xephyr**: the hidden screen, shown as a normal window you can see, minimise and close.
 - **xvfb**: a fully invisible hidden screen (a backup option).
@@ -148,6 +148,12 @@ The mouse is only ever allowed inside this box. The default is already safe: it 
 6. The Setup tab shows each route's length, for example "38.2 seconds, 14 key presses". If it looks wrong, record it again.
 
 Only allowed keys are recorded. Anything else you press is ignored and never sent.
+
+Tips for good routes:
+- Record **field -> hive** starting right next to your Saturator, in the spot where you placed it (that's where Beeline stands before walking home).
+- Finish **hive -> field** in the middle of the field, and finish **field -> hive** standing on the hive pad with the E prompt showing.
+- Walk in a few long straight lines rather than lots of little taps. Long straight walks replay more reliably.
+- Don't move the mouse over the game while recording (with shift lock on, that turns the camera, and turns aren't recorded).
 
 ---
 
