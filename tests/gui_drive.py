@@ -22,6 +22,7 @@ from beeline import gui, logsetup, synth  # noqa: E402
 SHOTS = sys.argv[1] if len(sys.argv) > 1 else "/tmp"
 errors = []
 messagebox.askokcancel = lambda *a, **k: True
+messagebox.askyesno = lambda *a, **k: True
 messagebox.showerror = lambda title, msg, **k: errors.append("%s: %s" % (title, msg))
 messagebox.showinfo = lambda *a, **k: None
 

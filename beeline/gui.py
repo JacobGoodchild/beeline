@@ -822,6 +822,11 @@ class App(tk.Tk):
         self.hotkey.stop()
         if self.runner_thread and self.runner_thread.is_alive():
             self.runner_thread.join(timeout=3)
+        if self.screen.server_proc is not None and display.display_is_up(self.screen.display):
+            if messagebox.askyesno("Close Beeline", "Also close the hidden screen (and the game inside it)?\n\n"
+                                   "Choose No to leave the game running, so you can open Beeline again "
+                                   "and carry on."):
+                self.screen.stop()
         self.destroy()
 
 

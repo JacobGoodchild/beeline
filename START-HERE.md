@@ -94,6 +94,8 @@ The macro then walks to the middle of Pine Tree Forest, places your Saturator (o
 
 **To stop:** press the big red **STOP** button, or press **F3** anywhere. Every key is let go straight away.
 
+**When you close Beeline**, it asks whether to close the hidden screen and the game too. Choose **No** if you want to open Beeline again and carry on in the same game.
+
 ---
 
 ## Part 3: First-time setup (calibration)

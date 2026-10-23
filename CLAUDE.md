@@ -188,7 +188,23 @@ Write it as if for someone who's never used a terminal much:
 Keep a **Progress log** section at the bottom of this file: what's done, what's not, any problems, and anything I need to do. Finish the session with a short **"Summary for Jacob"** at the top of the log: what works, what's untested, and exactly what to do first.
 
 ### Summary for Jacob
-(Filled in at the end of the session.)
+**What works (tested here in the cloud, without Roblox):**
+- The whole loop: walk to Pine Tree, place the Saturator once, gather in loops while swinging, walk home when the bag is full, press E once, wait for the bag **and** the hive balloon, walk back, repeat, and stop on time after a final convert.
+- All the safety rules: only allowed keys, key 2 only once and only in the field, the mouse only inside the safe box, STOP/F3 lets go of everything, and it stops itself whenever something looks wrong.
+- The Beeline window: settings, Start/Stop, live picture, the Setup tab for teaching it your screen and recording routes, and the log.
+- The real program, sending real key presses, was run against a pretend game many times (including clicking through the whole Setup tab automatically). 100+ automatic tests pass, on the same Python version Linux Mint 21.3 uses.
+
+**What's untested (because I can't run Roblox):**
+- Sober inside the hidden screen on your PC, and whether its window is found and fitted correctly.
+- How well the screen readings work on the real game (bag bar, E prompt, balloon, Saturator, field ground). The Setup tab's "Test it" buttons are there so you can check each one.
+- Exact walking in the real game. The safety checks will stop it if a route doesn't arrive.
+
+**What to do first:**
+1. Follow **START-HERE.md** Part 1 (install, about 5 minutes).
+2. Part 2 steps 1-8 (open the hidden screen and Sober, join Bee Swarm, claim a hive).
+3. Part 3 (Setup tab: calibrate and record both routes). Use "Test everything at once" to check.
+4. Part 4: a **dry run** first, then a 5-minute run while you watch, with your finger near F3.
+5. If anything stops it or looks odd, send Claude `logs/beeline.log` and the newest picture in `logs/stops/`.
 
 ### Session notes
 - Scheduling tool available (`send_later`). Wake-ups set: +45 min rolling, plus 16:30, 17:15, 18:00, 18:30 UK.
