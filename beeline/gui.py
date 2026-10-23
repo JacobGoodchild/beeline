@@ -7,6 +7,7 @@ import logging
 import os
 import queue
 import subprocess
+import sys
 import threading
 import time
 import tkinter as tk
@@ -15,7 +16,7 @@ from tkinter import messagebox, ttk
 from PIL import Image, ImageDraw
 
 from . import display, logsetup
-from .config import FIELDS, LOGS_DIR, SCREEN_SIZE, Calibration, Settings
+from .config import FIELDS, LOGS_DIR, PRACTICE, SCREEN_SIZE, Calibration, Settings
 from .hotkey import GlobalHotkey, xlib_available
 from .keywatch import KeyWatcher
 from .macro import Runner
@@ -43,10 +44,12 @@ MED = ("TkDefaultFont", 11)
 class App(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("Beeline - Bee Swarm macro")
+        self.title("Beeline PRACTICE - pretend game, no Roblox" if PRACTICE else "Beeline - Bee Swarm macro")
         self.geometry("1080x760")
         self.minsize(960, 700)
         self.settings = Settings.load()
+        if PRACTICE and self.settings.display == ":5":
+            self.settings.display = ":6"  # keep practice separate from the real hidden screen
         self.cal = Calibration.load()
         self.screen = display.HiddenScreen(self.settings.display, SCREEN_SIZE, self.settings.screen_mode,
                                            glamor=self.settings.xephyr_glamor)
@@ -77,7 +80,7 @@ class App(tk.Tk):
         self._build()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.bind_all("<F3>", lambda e: self.emergency_stop("F3"))
-        self.hotkey = GlobalHotkey(lambda: self.after(0, self.emergency_stop, "F3"), displays=(None,))
+        self.hotkey = GlobalHotkey(self._hotkey_pressed, displays=(None,))
         if self.hotkey.start() and display.display_is_up(self.settings.display):
             self.hotkey.add_display(self.settings.display)
         self.after(1500, self._show_hotkey)
@@ -110,7 +113,8 @@ class App(tk.Tk):
         box = ttk.LabelFrame(left, text="1. Hidden screen", padding=8)
         box.pack(fill="x", pady=(0, 8))
         ttk.Button(box, text="Start hidden screen", command=self.start_screen).pack(fill="x")
-        ttk.Button(box, text="Open Sober in it", command=self.open_sober).pack(fill="x", pady=2)
+        ttk.Button(box, text="Open the practice game in it" if PRACTICE else "Open Sober in it",
+                   command=self.open_sober).pack(fill="x", pady=2)
         ttk.Button(box, text="Fit game to hidden screen", command=self.fit_window).pack(fill="x")
         ttk.Checkbutton(box, text="Faster graphics (try this if the game is slow;\n restart the hidden screen after changing)",
                         variable=self.v_glamor, command=self._glamor_changed).pack(anchor="w")
@@ -328,6 +332,16 @@ class App(tk.Tk):
         self.hotkey_var.set("F3 emergency stop active on: %s" % on)
 
     def open_sober(self) -> None:
+        if PRACTICE:
+            if not display.display_is_up(self.screen.display):
+                messagebox.showerror("Practice", "Start the hidden screen first.")
+                return
+            root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+            env = dict(os.environ, DISPLAY=self.screen.display)
+            self.screen.sober_proc = subprocess.Popen([sys.executable, os.path.join(root, "beeline.py"),
+                                                       "--fake-game"], env=env)
+            self.status_var.set("Practice game opening. Then press 'Fit game to hidden screen'.")
+            return
         try:
             self.screen.launch_sober()
             self.status_var.set("Sober is opening in the hidden screen. Join Bee Swarm and claim a hive yourself.")
@@ -404,6 +418,19 @@ class App(tk.Tk):
         reason = self.runner.run()
         self.status_q.put("__done__" + reason)
 
+    def _hotkey_pressed(self) -> None:
+        """Runs on the F3 listener thread.  Stops input straight away (thread-safe) and
+        tells the window via the queue (Tk must only be touched from its own thread)."""
+        log.warning("EMERGENCY STOP (F3)")
+        self.stop_event.set()
+        for inp in (self.inp, self.record_inp):
+            if inp is not None:
+                try:
+                    inp.release_all()
+                except Exception:
+                    log.exception("release_all failed")
+        self.status_q.put("__f3__")
+
     def emergency_stop(self, source: str = "Stop") -> None:
         log.warning("EMERGENCY STOP (%s)", source)
         self.stop_event.set()
@@ -415,7 +442,10 @@ class App(tk.Tk):
                     log.exception("release_all failed")
         if self.recorder is not None:
             self.cancel_recording()
-        self.status_var.set("Stopping... (%s)" % source)
+        if self.runner_thread is not None and self.runner_thread.is_alive():
+            self.status_var.set("Stopping... (%s)" % source)
+        else:
+            self.status_var.set("Stopped (%s). All keys released." % source)
 
     # ================================================================ periodic updates
     def _tick_queues(self) -> None:
@@ -423,7 +453,9 @@ class App(tk.Tk):
         try:
             while True:
                 msg = self.status_q.get_nowait()
-                if msg.startswith("__done__"):
+                if msg == "__f3__":
+                    self.emergency_stop("F3")
+                elif msg.startswith("__done__"):
                     self.last_stop_reason = msg[8:]
                     self.status_var.set(self.last_stop_reason)
                     self.trips = self.runner.stats.trips if self.runner else self.trips

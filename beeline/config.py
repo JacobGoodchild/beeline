@@ -19,7 +19,8 @@ log = logging.getLogger("beeline.config")
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 # Where settings, calibration, routes and logs live (the Beeline folder; tests point it elsewhere).
-DATA = os.environ.get("BEELINE_DATA") or ROOT
+PRACTICE = os.environ.get("BEELINE_PRACTICE") == "1"   # practice mode: pretend game, separate files
+DATA = os.environ.get("BEELINE_DATA") or (os.path.join(ROOT, "practice") if PRACTICE else ROOT)
 SETTINGS_FILE = os.path.join(DATA, "settings.json")
 CALIBRATION_DIR = os.path.join(DATA, "calibration")
 ROUTES_DIR = os.path.join(DATA, "routes")

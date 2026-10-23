@@ -55,7 +55,7 @@ class FakeGame:
         self._photo = to_photo(self.world.screenshot(), self.root)
         self.canvas.delete("all")
         self.canvas.create_image(0, 0, anchor="nw", image=self._photo)
-        if self.state_file and now - self.last_state > 1.0:
+        if self.state_file and now - self.last_state > 0.2:
             self.last_state = now
             self.write_state()
         self.root.after(80, self.frame)

@@ -6,6 +6,11 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+if "--practice" in sys.argv:
+    # Practice mode: the pretend game instead of Roblox, with its own settings, calibration
+    # and routes (in the "practice" folder), so nothing real is touched.
+    os.environ["BEELINE_PRACTICE"] = "1"
+
 if "--fake-game" in sys.argv:
     from beeline.fakegame import main as fake_main
     fake_main()

@@ -73,6 +73,16 @@ Do these yourself in the game (Beeline never opens menus):
 2. Your computer's display scaling should be normal (100%). On Mint: **Menu → Display**, and check **User interface scaling** is **Normal**. (The hidden screen always uses its own fixed size, so this matters less than it does for Windows macros, but it's still best.)
 3. Put your **Supreme Saturator on hotbar slot 2**. Beeline presses **2** exactly once per session to place it.
 
+### Step 5 (optional, recommended). Practise with the pretend game first
+
+Beeline comes with a **pretend game**: a simple stand-in for Bee Swarm with a bag bar, a hive with an E prompt and a balloon, a blue-and-white field and a Saturator. It has nothing to do with Roblox, so you can try every button with **zero risk** to your account. It keeps its own separate settings, so nothing you do here affects the real setup.
+
+```
+cd ~/beeline && python3 beeline.py --practice
+```
+
+Then follow Parts 2 to 4 below exactly as written, except click **Open the practice game in it** instead of opening Sober. In the pretend game the hive pad is where you start, the field is straight to the right (hold **D** for about 5 seconds), and the way back is to the left (hold **A**). For the Saturator sample (Setup step D), click inside the hidden screen window and press **2** to place the pretend Saturator yourself. During a run, the macro places it on its own.
+
 ---
 
 ## Part 2: Every session

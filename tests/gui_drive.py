@@ -203,5 +203,42 @@ with open(state_file) as f:
     st = json.load(f)
 check(app.last_stop_reason.startswith("Stopped by you"), "stop button: " + app.last_stop_reason)
 check(st["held"] == [] and not st["mouse_held"], "all keys released after Stop")
+
+# ---- F3 pressed on the hidden screen during a run (the test plays Jacob's keyboard)
+from beeline.hotkey import xlib_available  # noqa: E402
+
+
+def walk_back_to_pad():
+    """The test walks the pretend character home by hand (like Jacob would)."""
+    env = {"DISPLAY": app.settings.display, "PATH": os.environ["PATH"]}
+    with open(state_file) as f:
+        x = json.load(f)["x"]
+    key = "a" if x > 0 else "d"
+    subprocess.run(["xdotool", "keydown", key], env=env)
+    for _ in range(300):
+        pump(0.05)
+        with open(state_file) as f:
+            x = json.load(f)["x"]
+        if abs(x) < 0.8:
+            break
+    subprocess.run(["xdotool", "keyup", key], env=env)
+    pump(1)
+
+
+if xlib_available():
+    walk_back_to_pad()
+    app.last_stop_reason = "-"
+    app.start_run()
+    pump(8)
+    subprocess.run(["xdotool", "key", "F3"], env={"DISPLAY": app.settings.display, "PATH": os.environ["PATH"]})
+    for _ in range(100):
+        pump(0.1)
+        if not app.runner_thread.is_alive():
+            break
+    pump(1.5)
+    with open(state_file) as f:
+        st = json.load(f)
+    check(app.last_stop_reason.startswith("Stopped by you"), "F3: " + app.last_stop_reason)
+    check(st["held"] == [] and not st["mouse_held"], "all keys released after F3")
 cleanup()
 print("ALL GUI CHECKS PASSED")
