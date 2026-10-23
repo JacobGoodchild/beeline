@@ -101,6 +101,7 @@ class App(tk.Tk):
         right = ttk.Frame(f)
         right.pack(side="left", fill="both", expand=True)
 
+        self.v_glamor = tk.BooleanVar(value=self.settings.xephyr_glamor)
         box = ttk.LabelFrame(left, text="1. Hidden screen", padding=8)
         box.pack(fill="x", pady=(0, 8))
         ttk.Button(box, text="Start hidden screen", command=self.start_screen).pack(fill="x")
@@ -127,7 +128,6 @@ class App(tk.Tk):
         self.v_dry = tk.BooleanVar(value=self.settings.dry_run)
         self.v_retry = tk.BooleanVar(value=self.settings.allow_sprinkler_retry)
         self.v_drift = tk.BooleanVar(value=self.settings.drift_compensation)
-        self.v_glamor = tk.BooleanVar(value=self.settings.xephyr_glamor)
 
         def row(label):
             r = ttk.Frame(box)
@@ -225,7 +225,7 @@ class App(tk.Tk):
             lf = ttk.LabelFrame(inner, text=title, padding=6)
             lf.pack(fill="x", pady=3)
             v = tk.StringVar(value="")
-            ttk.Label(lf, textvariable=v, foreground="#2e7d32").pack(anchor="w")
+            ttk.Label(lf, textvariable=v, foreground="#2e7d32", wraplength=360, justify="left").pack(anchor="w")
             self.step_status[key] = v
             return lf
 
@@ -245,8 +245,8 @@ class App(tk.Tk):
         s = step("balloon", "C. Hive balloon")
         btns(s, ("Drag a box where it floats", lambda: self.set_mode("balloon_box")))
         btns(s, ("Balloon is THERE: capture", lambda: self.capture_balloon(True)),
-             ("Balloon GONE: capture", lambda: self.capture_balloon(False)),
-             ("Test it", lambda: self.set_test("balloon")))
+             ("Balloon GONE: capture", lambda: self.capture_balloon(False)))
+        btns(s, ("Test it", lambda: self.set_test("balloon")))
         s = step("saturator", "D. Supreme Saturator")
         btns(s, ("Drag a box around it", lambda: self.set_mode("saturator")), ("Test it", lambda: self.set_test("saturator")))
         btns(s, ("Add another sample (e.g. at night)", lambda: self.set_mode("saturator_add")))
@@ -677,7 +677,7 @@ class App(tk.Tk):
                 r = None
                 log.warning("route file problem: %s", e)
             parts.append("%s: %s" % (label, r.summary() if r else "NOT RECORDED"))
-        self.step_status["routes"].set("Slot %d. " % slot + " | ".join(parts))
+        self.step_status["routes"].set("Slot %d:\n" % slot + "\n".join(parts))
 
     # ================================================================ setup: route recording
     def start_recording(self, name) -> None:

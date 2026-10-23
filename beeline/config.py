@@ -18,10 +18,12 @@ from .safety import SafeZone
 log = logging.getLogger("beeline.config")
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-SETTINGS_FILE = os.path.join(ROOT, "settings.json")
-CALIBRATION_DIR = os.path.join(ROOT, "calibration")
-ROUTES_DIR = os.path.join(ROOT, "routes")
-LOGS_DIR = os.path.join(ROOT, "logs")
+# Where settings, calibration, routes and logs live (the Beeline folder; tests point it elsewhere).
+DATA = os.environ.get("BEELINE_DATA") or ROOT
+SETTINGS_FILE = os.path.join(DATA, "settings.json")
+CALIBRATION_DIR = os.path.join(DATA, "calibration")
+ROUTES_DIR = os.path.join(DATA, "routes")
+LOGS_DIR = os.path.join(DATA, "logs")
 
 FIELDS = ["Pine Tree Forest"]  # more can be added later
 SCREEN_SIZE = (1280, 720)       # the hidden screen is always this size
