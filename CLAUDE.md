@@ -298,3 +298,4 @@ To do: remake the practice game to look like these; tests on the real screenshot
 - Rule 4: E is pressed in exactly one place (`Runner.convert`), and only right after the banner reads "Make Honey". A route's E only goes through if the banner says "Fire the Red Cannon" at that moment. Both are tested, plus a test that fails if another E press is ever added. Key 2 is unchanged. ✅
 - Rule 5: the safe zone (default and the biggest allowed) is tested against the no-click areas measured on the real screenshots. ✅
 - Rule 6: new stops: Tesseract missing, banner not "Make Honey" at the hive, wrong field named in the feed, numbers vs bar disagreeing badly 3 times in a row, Saturator only "seen" for one frame doesn't count. ✅
+- Screenshots confirm the Sober window title is "Sober", which `find_game_window()` searches for first.
