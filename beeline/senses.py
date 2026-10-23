@@ -55,7 +55,12 @@ class Senses:
         c = self.cal
         if not c.saturator_ready():
             return None
-        return vision.find_colour_blob(img, tuple(c.saturator_colour), c.saturator_tolerance)
+        best = None
+        for colour in c.saturator_colours():
+            b = vision.find_colour_blob(img, tuple(colour), c.saturator_tolerance)
+            if best is None or b.count > best.count:
+                best = b
+        return best
 
     def saturator_visible(self, img) -> bool:
         b = self.saturator(img)
@@ -67,7 +72,7 @@ class Senses:
             return 0.0
         x, y, w, h = c.field_box
         hist = vision.colour_histogram(img.crop((x, y, x + w, y + h)))
-        return vision.histogram_similarity(hist, c.field_histograms[self.field_name])
+        return max(vision.histogram_similarity(hist, sample) for sample in c.field_samples(self.field_name))
 
     def in_field(self, img) -> bool:
         return self.field_score(img) >= self.cal.field_threshold

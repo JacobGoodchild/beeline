@@ -66,12 +66,14 @@ def grab_screenshot(display: str, size: tuple | None = None):
 
 
 class HiddenScreen:
-    def __init__(self, display: str = ":5", size: tuple = (1280, 720), mode: str = "xephyr") -> None:
+    def __init__(self, display: str = ":5", size: tuple = (1280, 720), mode: str = "xephyr",
+                 glamor: bool = False) -> None:
         if display in (":0", ":0.0", ""):
             raise DisplayError("The hidden screen must not be your main desktop (:0). Use :5.")
         self.display = display
         self.size = tuple(size)
         self.mode = mode  # "xephyr" (a window you can see) or "xvfb" (fully hidden)
+        self.glamor = glamor
         self.server_proc: subprocess.Popen | None = None
         self.sober_proc: subprocess.Popen | None = None
 
@@ -88,6 +90,8 @@ class HiddenScreen:
                                    "(or switch 'Hidden screen type' to Xvfb).")
             cmd = [exe, self.display, "-screen", "%dx%d" % (w, h), "-ac", "-br", "-noreset",
                    "-resizeable", "-title", "Beeline hidden screen"]
+            if self.glamor:
+                cmd.append("-glamor")
         else:
             exe = shutil.which("Xvfb")
             if not exe:

@@ -133,6 +133,31 @@ class SafeZoneTests(unittest.TestCase):
             inp.click(640, int(0.85 * 720))
 
 
+class MouseHoldTests(unittest.TestCase):
+    def test_hold_point_is_screen_centre(self):
+        inp, backend = make_input()
+        self.assertEqual(inp.hold_point(), (640, 360))
+
+    def test_hold_point_falls_back_to_zone_centre_when_zone_excludes_centre(self):
+        inp, backend = make_input(zone=SafeZone(0.6, 0.2, 0.8, 0.4))
+        x, y = inp.hold_point()
+        self.assertTrue(inp.zone.contains(x, y, 1280, 720))
+
+    def test_pointer_only_moved_once_so_camera_is_not_turned(self):
+        inp, backend = make_input()
+        x, y = inp.hold_point()
+        for _ in range(5):
+            inp.mouse_down(x, y)
+            inp.mouse_up()
+        moves = [e for e in backend.events if e[0] == "mouse_move"]
+        self.assertEqual(moves, [("mouse_move", 640, 360)])
+
+    def test_only_left_button_exists(self):
+        src = inspect.getsource(safety.XdotoolBackend)
+        self.assertIn('"mousedown", "1"', src)
+        self.assertNotRegex(src, r'"mouse(down|up)", "[2-9]"')
+
+
 class StopTests(unittest.TestCase):
     def test_release_all_releases_everything(self):
         inp, backend = make_input()

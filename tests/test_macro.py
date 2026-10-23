@@ -238,6 +238,21 @@ class StopConditionTests(unittest.TestCase):
 
 
 class DryRunTests(unittest.TestCase):
+    def test_dry_run_reports_missing_eprompt(self):
+        cal = calibrated()
+        clock = FakeClock()
+        backend = RecordingBackend()
+        inp = SafeInput(backend, clock=clock, zone=cal.zone(), dry_run=True)
+        s = Settings(run_hours=0, run_minutes=30, dry_run=True)
+        tick = [0]
+
+        def screen():
+            tick[0] += 1
+            return synth.draw_scene(eprompt=False, tick=tick[0])
+        reason = Runner(s, cal, inp, screen, fake_routes(), clock=clock).run()
+        self.assertIn("E-prompt NOT seen", reason)
+        self.assertIn("Would have stopped because", reason)
+
     def test_dry_run_presses_nothing_real(self):
         cal = calibrated()
         clock = FakeClock()
@@ -252,6 +267,8 @@ class DryRunTests(unittest.TestCase):
         runner = Runner(s, cal, inp, screen, fake_routes(), clock=clock)
         reason = runner.run()
         self.assertIn("dry run finished", reason.lower())
+        self.assertIn("E-prompt SEEN", reason)
+        self.assertIn("No problems found", reason)
         self.assertNotIn(("keydown", "2"), backend.events)
         # it rehearsed the walk and the convert press
         self.assertIn(("keydown", "d"), backend.events)

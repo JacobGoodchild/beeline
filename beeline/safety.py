@@ -228,6 +228,7 @@ class SafeInput:
         self.dry_run = dry_run
         self._held: set = set()
         self._mouse_held = False
+        self._mouse_pos = None  # last place we put the pointer (None = never moved it)
         self._lock = threading.RLock()
         self.last_input_time = self.clock.now()
         self.on_input = None  # optional callback(description) e.g. for the GUI's dry-run view
@@ -299,17 +300,34 @@ class SafeInput:
         if not self.zone.contains(x, y, self.screen_w, self.screen_h):
             raise InputRefused("mouse position (%d, %d) is outside the click-safe zone" % (x, y))
 
+    def hold_point(self) -> tuple:
+        """Where to hold the left button: the exact screen centre (with shift lock on, Roblox
+        keeps the pointer there, so 'moving' to it doesn't turn the camera).  Only if the
+        safe zone was shrunk away from the centre is the zone's own centre used instead."""
+        cx, cy = self.screen_w // 2, self.screen_h // 2
+        if self.zone.contains(cx, cy, self.screen_w, self.screen_h):
+            return cx, cy
+        log.warning("safe zone doesn't include the screen centre; holding the mouse at the zone centre")
+        return self.zone.centre(self.screen_w, self.screen_h)
+
+    def _move(self, x: int, y: int) -> None:
+        """Move only if the pointer isn't already there: any real movement turns the camera
+        when shift lock is on."""
+        if self._mouse_pos != (x, y):
+            self.backend.mouse_move(x, y)
+            self._mouse_pos = (x, y)
+
     def move_mouse(self, x: int, y: int) -> None:
         self._check_point(x, y)
         with self._lock:
             self._guard()
-            self.backend.mouse_move(x, y)
+            self._move(x, y)
 
     def click(self, x: int, y: int) -> None:
         self._check_point(x, y)
         with self._lock:
             self._guard()
-            self.backend.mouse_move(x, y)
+            self._move(x, y)
             self.backend.mouse_down()
             self._mouse_held = True
         try:
@@ -323,7 +341,7 @@ class SafeInput:
         self._check_point(x, y)
         with self._lock:
             self._guard()
-            self.backend.mouse_move(x, y)
+            self._move(x, y)
             self.backend.mouse_down()
             self._mouse_held = True
             self._note("hold left mouse")

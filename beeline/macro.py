@@ -13,6 +13,7 @@ import traceback
 from dataclasses import dataclass, field
 
 from . import vision
+from .display import DisplayError
 from .clock import Clock
 from .config import LOGS_DIR, Calibration, Settings
 from .routes import Route, replay
@@ -81,6 +82,7 @@ class Runner:
         self.state = "idle"
         self.dry = bool(settings.dry_run)
         self.dry_notes: list = []
+        self.dry_report = ""
 
     # ------------------------------------------------------------------ helpers
     def status(self, text: str) -> None:
@@ -108,7 +110,10 @@ class Runner:
         return self.clock.now() >= self.deadline
 
     def look(self):
-        img = self.screen()
+        try:
+            img = self.screen()
+        except DisplayError as e:
+            raise StopMacro("Stopped: couldn't see the hidden screen (%s)" % e)
         if img is None:
             raise StopMacro("Couldn't see the game window (no screenshot)")
         self._last_img = img
@@ -173,8 +178,10 @@ class Runner:
         try:
             self._run()
             if self.dry:
-                reason = ("Dry run finished: nothing was pressed. %d problem(s) it would have stopped for%s"
-                          % (len(self.dry_notes), (": " + self.dry_notes[0]) if self.dry_notes else ""))
+                reason = "Dry run finished: nothing was pressed. At the start it saw: %s. %s" % (
+                    self.dry_report,
+                    ("Would have stopped because: " + self.dry_notes[0]) if self.dry_notes
+                    else "No problems found.")
             else:
                 reason = "Finished: time limit reached (final convert done)"
         except EmergencyStop:
@@ -230,6 +237,13 @@ class Runner:
             raise StopMacro("Run time is zero. Set 'Run for' first.")
         img = self.look()
         self.safety_check(img)
+        if self.dry:
+            seen = self.senses.look(img)
+            self.dry_report = "E-prompt %s (match %d%%), bag %d%%, field check says %s, Saturator %s" % (
+                "SEEN" if seen.eprompt else "NOT seen", seen.eprompt_score * 100, seen.bag or 0,
+                "in the field" if seen.in_field else "not in the field",
+                "visible" if seen.saturator else "not visible")
+            log.info("[dry run] start check: %s", self.dry_report)
         if not self.senses.eprompt_visible(img):
             self.fail("Couldn't see the 'Make Honey' E-prompt. Stand on your hive pad, then press Start.")
 
@@ -260,6 +274,9 @@ class Runner:
         self.status(label)
         self.inp.mouse_up()
         replay(route, self.inp, check=self.safety_check, check_every=CHECK_EVERY)
+        if self.dry:
+            log.info("[dry run] nothing really moved, so not checking arrival (%s)", label)
+            return
         limit = max(10.0, route.duration * (self.s.route_slack - 1.0) + 10.0)
         end = self.clock.now() + limit
         while True:
@@ -267,9 +284,8 @@ class Runner:
             self.safety_check(img)
             if arrived(img):
                 return
-            if self.clock.now() >= end or self.dry:
-                self.fail(fail_msg)
-                return
+            if self.clock.now() >= end:
+                raise StopMacro(fail_msg)
             self.inp.sleep(0.5)
 
     def walk_to_field(self, first: bool) -> None:
@@ -367,7 +383,7 @@ class Runner:
         trip_start = self.clock.now()
         threshold = float(self.s.convert_percent)
         pattern = PATTERNS.get(self.s.loop_size, PATTERNS["small"])
-        cx, cy = self.inp.zone.centre(self.inp.screen_w, self.inp.screen_h)
+        cx, cy = self.inp.hold_point()
         self.inp.mouse_down(cx, cy)   # swing the Petal Wand
         cycles = 0
         try:
@@ -380,8 +396,9 @@ class Runner:
                 self.safety_check(img)
                 bag = self.bag(img)
                 self.status("Gathering in %s - bag %d%%" % (self.s.field, bag))
-                self.check_bag_sane(bag)
-                self.check_still_in_field(img)
+                if not self.dry:  # in a dry run we never actually got to the field
+                    self.check_bag_sane(bag)
+                    self.check_still_in_field(img)
                 if bag >= threshold:
                     log.info("bag %.0f%% >= %.0f%%: heading home", bag, threshold)
                     return
@@ -423,8 +440,8 @@ class Runner:
     # ------------------------------------------------------------------ converting
     def convert(self) -> None:
         img = self.look()
-        if not self.senses.eprompt_visible(img):
-            self.fail("Stopped: not on the hive pad (no Make Honey prompt)")
+        if not self.dry and not self.senses.eprompt_visible(img):
+            raise StopMacro("Stopped: not on the hive pad (no Make Honey prompt)")
         start_bag = self.bag(img)
         self.status("Converting bag (%d%%)" % start_bag)
         self.inp.tap("e")  # once - pressing again can toggle converting off
@@ -442,6 +459,7 @@ class Runner:
             bag = self.bag(img)
             self.status("Converting bag (%d%%)" % bag)
             if bag <= BAG_EMPTY_PCT:
+                self.wait(4)  # let the last bit of pollen finish before looking at the balloon
                 break
             if bag < start_bag - 2:
                 started = True

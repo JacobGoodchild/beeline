@@ -32,17 +32,31 @@ class GlobalHotkey:
         self._threads: list = []
         self._running = False
         self.active_on: list = []
+        self._started: set = set()
 
     def start(self) -> bool:
+        """Start listening on every display given to the constructor."""
         if not xlib_available():
             log.warning("python3-xlib not installed: F3 only works while Beeline is focused")
             return False
         self._running = True
         for d in self.displays:
-            t = threading.Thread(target=self._listen, args=(d,), daemon=True)
-            t.start()
-            self._threads.append(t)
+            self.add_display(d)
         return True
+
+    def add_display(self, display_name) -> None:
+        """Listen on one more display (e.g. the hidden screen once it is running).
+        Safe to call again for a display that is already being watched."""
+        if not xlib_available():
+            return
+        self._running = True
+        key = display_name or "desktop"
+        if key in self._started:
+            return
+        self._started.add(key)
+        t = threading.Thread(target=self._listen, args=(display_name,), daemon=True)
+        t.start()
+        self._threads.append(t)
 
     def stop(self) -> None:
         self._running = False
@@ -72,4 +86,5 @@ class GlobalHotkey:
                     except Exception:
                         log.exception("emergency stop callback failed")
         except Exception as exc:  # display not up yet, F3 already grabbed, etc.
+            self._started.discard(display_name or "desktop")  # allow a retry later
             log.warning("F3 hotkey not available on %s: %s", display_name or "desktop", exc)

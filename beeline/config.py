@@ -43,6 +43,7 @@ class Settings:
     drift_compensation: bool = True
     display: str = ":5"
     screen_mode: str = "xephyr"       # "xephyr" (visible window) or "xvfb" (fully hidden)
+    xephyr_glamor: bool = False       # use the graphics card inside Xephyr (faster, may not work everywhere)
     stuck_screen_seconds: float = 60.0
     route_slack: float = 1.5          # stop if arrival isn't confirmed within route time x this (+10 s)
 
@@ -106,11 +107,12 @@ class Calibration:
 
     balloon_box: list | None = None
     saturator_colour: list | None = None
+    saturator_extra_colours: list = field(default_factory=list)  # e.g. a night-time sample
     saturator_min_count: int = 6
     saturator_tolerance: float = 40.0
 
     field_box: list | None = None
-    field_histograms: dict = field(default_factory=dict)  # field name -> histogram
+    field_histograms: dict = field(default_factory=dict)  # field name -> list of histograms (day, night...)
     field_threshold: float = 0.55
 
     safe_zone: dict = field(default_factory=lambda: SafeZone().to_dict())
@@ -137,7 +139,7 @@ class Calibration:
         return bool(self.saturator_colour)
 
     def field_ready(self, field_name: str) -> bool:
-        return bool(self.field_box) and field_name in self.field_histograms
+        return bool(self.field_box) and bool(self.field_samples(field_name))
 
     def zone(self) -> SafeZone:
         return SafeZone.from_dict(self.safe_zone)
@@ -181,18 +183,37 @@ class Calibration:
         else:
             self.balloon_gone_img = crop
 
-    def capture_saturator(self, img: Image.Image, box) -> None:
+    def capture_saturator(self, img: Image.Image, box, add: bool = False) -> None:
+        """add=True keeps the existing sample and adds this one (e.g. at night)."""
         x, y, w, h = [int(v) for v in box]
         crop = img.crop((x, y, x + w, y + h))
-        colour = vision.dominant_bright_colour(crop)
-        self.saturator_colour = list(colour)
-        blob = vision.find_colour_blob(img, colour, self.saturator_tolerance)
-        self.saturator_min_count = max(4, int(blob.count * 0.25))
+        colour = list(vision.dominant_bright_colour(crop))
+        blob = vision.find_colour_blob(img, tuple(colour), self.saturator_tolerance)
+        count = max(4, int(blob.count * 0.25))
+        if add and self.saturator_colour:
+            self.saturator_extra_colours.append(colour)
+            self.saturator_min_count = min(self.saturator_min_count, count)
+        else:
+            self.saturator_colour = colour
+            self.saturator_extra_colours = []
+            self.saturator_min_count = count
 
-    def capture_field(self, img: Image.Image, box, field_name: str) -> None:
+    def saturator_colours(self) -> list:
+        return ([self.saturator_colour] if self.saturator_colour else []) + list(self.saturator_extra_colours)
+
+    def field_samples(self, field_name: str) -> list:
+        v = self.field_histograms.get(field_name) or []
+        if v and not isinstance(v[0], list):  # older single-sample format
+            v = [v]
+        return v
+
+    def capture_field(self, img: Image.Image, box, field_name: str, add: bool = False) -> None:
+        """add=True keeps earlier samples (e.g. add a night-time one)."""
         x, y, w, h = [int(v) for v in box]
         self.field_box = [x, y, w, h]
-        self.field_histograms[field_name] = vision.colour_histogram(img.crop((x, y, x + w, y + h)))
+        hist = vision.colour_histogram(img.crop((x, y, x + w, y + h)))
+        samples = self.field_samples(field_name) if add else []
+        self.field_histograms[field_name] = samples + [hist]
 
     def set_safe_zone(self, left, top, right, bottom) -> None:
         self.safe_zone = SafeZone(left, top, right, bottom).to_dict()

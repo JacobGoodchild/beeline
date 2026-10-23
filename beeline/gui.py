@@ -46,7 +46,8 @@ class App(tk.Tk):
         self.minsize(960, 700)
         self.settings = Settings.load()
         self.cal = Calibration.load()
-        self.screen = display.HiddenScreen(self.settings.display, SCREEN_SIZE, self.settings.screen_mode)
+        self.screen = display.HiddenScreen(self.settings.display, SCREEN_SIZE, self.settings.screen_mode,
+                                           glamor=self.settings.xephyr_glamor)
         self.status_q: "queue.Queue[str]" = queue.Queue()
         self.inputs_q: "queue.Queue[str]" = queue.Queue()
         self.runner: Runner | None = None
@@ -71,8 +72,10 @@ class App(tk.Tk):
         self._build()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.bind_all("<F3>", lambda e: self.emergency_stop("F3"))
-        self.hotkey = GlobalHotkey(lambda: self.after(0, self.emergency_stop, "F3"),
-                                   displays=(None, self.settings.display))
+        self.hotkey = GlobalHotkey(lambda: self.after(0, self.emergency_stop, "F3"), displays=(None,))
+        if self.hotkey.start() and display.display_is_up(self.settings.display):
+            self.hotkey.add_display(self.settings.display)
+        self.after(1500, self._show_hotkey)
         self.after(200, self._tick_preview)
         self.after(100, self._tick_queues)
         self.after(1000, self._tick_stats)
@@ -103,6 +106,8 @@ class App(tk.Tk):
         ttk.Button(box, text="Start hidden screen", command=self.start_screen).pack(fill="x")
         ttk.Button(box, text="Open Sober in it", command=self.open_sober).pack(fill="x", pady=2)
         ttk.Button(box, text="Fit game to hidden screen", command=self.fit_window).pack(fill="x")
+        ttk.Checkbutton(box, text="Faster graphics (try this if the game is slow;\n restart the hidden screen after changing)",
+                        variable=self.v_glamor, command=self._glamor_changed).pack(anchor="w")
         row = ttk.Frame(box)
         row.pack(fill="x", pady=(2, 0))
         ttk.Button(row, text="Hide window", command=lambda: self.screen.set_xephyr_window_visible(False)
@@ -122,6 +127,7 @@ class App(tk.Tk):
         self.v_dry = tk.BooleanVar(value=self.settings.dry_run)
         self.v_retry = tk.BooleanVar(value=self.settings.allow_sprinkler_retry)
         self.v_drift = tk.BooleanVar(value=self.settings.drift_compensation)
+        self.v_glamor = tk.BooleanVar(value=self.settings.xephyr_glamor)
 
         def row(label):
             r = ttk.Frame(box)
@@ -243,8 +249,10 @@ class App(tk.Tk):
              ("Test it", lambda: self.set_test("balloon")))
         s = step("saturator", "D. Supreme Saturator")
         btns(s, ("Drag a box around it", lambda: self.set_mode("saturator")), ("Test it", lambda: self.set_test("saturator")))
+        btns(s, ("Add another sample (e.g. at night)", lambda: self.set_mode("saturator_add")))
         s = step("field", "E. Field ground (stand in the middle of the field)")
         btns(s, ("Drag a box over the flowers", lambda: self.set_mode("field")), ("Test it", lambda: self.set_test("field")))
+        btns(s, ("Add another sample (e.g. at night)", lambda: self.set_mode("field_add")))
         s = step("zone", "F. Click-safe zone (green box)")
         btns(s, ("Drag a smaller box", lambda: self.set_mode("zone")), ("Reset to default", self.reset_zone))
         s = step("routes", "G. Routes for your hive slot")
@@ -292,14 +300,21 @@ class App(tk.Tk):
         try:
             self.screen.start()
             self.status_var.set("Hidden screen is running on %s. Now press 'Open Sober in it'." % self.screen.display)
-            if not self.hotkey._running:
-                if self.hotkey.start():
-                    self.after(1500, self._show_hotkey)
+            self.hotkey.add_display(self.screen.display)
+            self.after(1500, self._show_hotkey)
         except display.DisplayError as e:
             messagebox.showerror("Hidden screen", str(e))
 
+    def _glamor_changed(self) -> None:
+        self.settings.xephyr_glamor = bool(self.v_glamor.get())
+        self.settings.save()
+        self.screen.glamor = self.settings.xephyr_glamor
+
     def _show_hotkey(self) -> None:
-        on = ", ".join(self.hotkey.active_on) or "nowhere yet"
+        if not xlib_available():
+            self.hotkey_var.set("F3 works while this window is focused. Install python3-xlib for F3 everywhere.")
+            return
+        on = ", ".join(self.hotkey.active_on) or "only this window so far"
         self.hotkey_var.set("F3 emergency stop active on: %s" % on)
 
     def open_sober(self) -> None:
@@ -533,6 +548,10 @@ class App(tk.Tk):
         "saturator": "Stand next to your placed Saturator, then drag a box around its neon-blue bear head.",
         "field": "Stand in the middle of the field, then drag a box over the flowers around your character "
                  "(avoid the bag bar and buttons).",
+        "saturator_add": "Extra sample: stand next to your Saturator (e.g. at night) and drag a box around its "
+                         "bear head. The first sample is kept.",
+        "field_add": "Extra sample: stand in the middle of the field (e.g. at night) and drag a box over the "
+                     "flowers. Earlier samples are kept.",
         "zone": "Drag a box for where the mouse may click. It can only be made smaller, never bigger "
                 "than the allowed area.",
     }
@@ -589,12 +608,13 @@ class App(tk.Tk):
         elif mode == "balloon_box":
             self.cal.balloon_box = box
             self.setup_help.set("Balloon area set. Now capture it with the balloon THERE, and later GONE.")
-        elif mode == "saturator":
-            self.cal.capture_saturator(img, box)
-            self.setup_help.set("Saturator captured (colour %s). Press 'Test it'." % (tuple(self.cal.saturator_colour),))
-        elif mode == "field":
-            self.cal.capture_field(img, box, self.v_field.get())
-            self.setup_help.set("Field ground captured. Press 'Test it' here, then again near your hive (should say no).")
+        elif mode in ("saturator", "saturator_add"):
+            self.cal.capture_saturator(img, box, add=(mode == "saturator_add"))
+            self.setup_help.set("Saturator captured (%d sample(s)). Press 'Test it'." % len(self.cal.saturator_colours()))
+        elif mode in ("field", "field_add"):
+            self.cal.capture_field(img, box, self.v_field.get(), add=(mode == "field_add"))
+            self.setup_help.set("Field ground captured (%d sample(s)). Press 'Test it' here, then again near your "
+                                "hive (should say no)." % len(self.cal.field_samples(self.v_field.get())))
         elif mode == "zone":
             x, y, w, h = box
             self.cal.set_safe_zone(x / W, y / H, (x + w) / W, (y + h) / H)
@@ -640,8 +660,8 @@ class App(tk.Tk):
         self.step_status["eprompt"].set("Status: " + ok(c.eprompt_ready()))
         self.step_status["balloon"].set("Status: there=%s, gone=%s" % (
             ok(c.balloon_present_img is not None), ok(c.balloon_gone_img is not None)))
-        self.step_status["saturator"].set("Status: " + ok(c.saturator_ready()))
-        self.step_status["field"].set("Status: " + ok(c.field_ready(fieldname)))
+        self.step_status["saturator"].set("Status: %s (%d sample(s))" % (ok(c.saturator_ready()), len(c.saturator_colours())))
+        self.step_status["field"].set("Status: %s (%d sample(s))" % (ok(c.field_ready(fieldname)), len(c.field_samples(fieldname))))
         z = c.zone()
         self.step_status["zone"].set("Zone: %.0f%%-%.0f%% across, %.0f%%-%.0f%% down"
                                      % (z.left * 100, z.right * 100, z.top * 100, z.bottom * 100))
