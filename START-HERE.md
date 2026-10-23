@@ -34,13 +34,12 @@ What each one is for:
 ### Step 2. Download Beeline
 
 ```
-cd ~ && git clone https://github.com/jacobgoodchild/beeline.git && cd beeline && git checkout claude/clever-noether-tnl7t5
+cd ~ && git clone https://github.com/jacobgoodchild/beeline.git && cd beeline
 ```
 
 This makes a folder called **beeline** in your Home folder.
 
-- If it asks for a GitHub username and password (this happens if the project is private), it's easier to download it from the website instead. Open github.com/jacobgoodchild/beeline in your browser while logged in, pick the branch **claude/clever-noether-tnl7t5** from the branch menu, click the green **Code** button, then **Download ZIP**. Unzip it into your Home folder and rename the folder to **beeline**.
-- Once this work has been merged into the main branch, you won't need the `git checkout ...` part.
+- If it asks for a GitHub username and password (this happens if the project is private), it's easier to download it from the website instead. Open github.com/jacobgoodchild/beeline in your browser while logged in click the green **Code** button, then **Download ZIP**. Unzip it into your Home folder and rename the folder to **beeline**.
 
 ### Step 3. Start Beeline
 
