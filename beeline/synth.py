@@ -38,6 +38,11 @@ def draw_scene(bag: float = 0.0, eprompt: bool = False, balloon: bool = False,
         d.rectangle((0, 220, W, H), fill=(150, 120, 80))
         for i in range(6):
             d.rectangle((150 + i * 170, 120, 270 + i * 170, 330), fill=(200, 160, 60), outline=(90, 60, 20))
+    # a few bees buzzing about (they move every tick, so the screen is never frozen)
+    for i in range(6):
+        bx = 320 + ((tick * 37 + i * 97) % 520)
+        by = 232 + ((tick * 23 + i * 41) % 60)
+        d.ellipse((bx, by, bx + 16, by + 12), fill=(250, 210, 30))
     # the player (always in the middle)
     d.ellipse((620, 380, 660, 440), fill=(240, 200, 150))
     if saturator_at is not None:

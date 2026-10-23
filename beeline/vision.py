@@ -225,7 +225,7 @@ def histogram_similarity(h1: list, h2: list) -> float:
 # ---------------------------------------------------------------------------
 
 def thumbnail(img: Image.Image) -> Image.Image:
-    return img.convert("L").resize((64, 36), Image.BILINEAR)
+    return img.convert("L").resize((128, 72), Image.BILINEAR)
 
 
 def frame_change(a: Image.Image, b: Image.Image) -> float:

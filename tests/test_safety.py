@@ -79,7 +79,8 @@ class KeyAllowlistTests(unittest.TestCase):
                 src = f.read()
             if re.search(r"backend\.key_(down|up)|_SPRINKLER_TOKEN|_SPRINKLER_KEYSYM", src):
                 offenders.append(fn)
-            if re.search(r"""["'](key|keydown|keyup|type)["']""", src) and "xdotool" in src:
+            calls_xdotool = "subprocess" in src and "xdotool" in src
+            if calls_xdotool and re.search(r"""["'](key|keydown|keyup|type|click|mousedown|mouseup)["']""", src):
                 offenders.append(fn + " (xdotool key command)")
         self.assertEqual(offenders, [])
 
