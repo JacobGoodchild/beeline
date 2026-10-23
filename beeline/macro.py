@@ -296,7 +296,8 @@ class Runner:
     def _walk(self, route: Route, label: str, arrived, fail_msg: str) -> None:
         self.status(label)
         self.inp.mouse_up()
-        replay(route, self.inp, check=self.safety_check, check_every=CHECK_EVERY)
+        replay(route, self.inp, check=self.safety_check, check_every=CHECK_EVERY,
+               before_down=self._route_key_allowed)
         if self.dry:
             log.info("[dry run] nothing really moved, so not checking arrival (%s)", label)
             return
@@ -310,6 +311,18 @@ class Runner:
             if self.clock.now() >= end:
                 raise StopMacro(fail_msg)
             self.inp.sleep(0.5)
+
+    def _route_key_allowed(self, key: str) -> None:
+        """A recorded route may press E only to fire the Red Cannon, and only if the banner
+        says so at that exact moment.  Otherwise the run stops (E is never pressed blindly)."""
+        if key != "e" or self.dry:
+            return
+        img = self.look()
+        banner = self.senses.banner(img)
+        if banner != "cannon":
+            raise StopMacro("Stopped: the route wanted to press E, but the banner says %s, not "
+                            "'Fire the Red Cannon'" % ({"make_honey": "'Make Honey'"}.get(banner, "nothing")))
+        log.info("route: banner says Fire the Red Cannon, pressing E")
 
     def walk_to_field(self, first: bool) -> None:
         self._walk(self.routes["hive_to_field"], "Walking to " + self.s.field, self.senses.in_field,

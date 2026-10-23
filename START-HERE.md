@@ -17,7 +17,7 @@ This guide assumes you've barely used a terminal. Wherever you see a grey box, c
 Paste this into the terminal:
 
 ```
-sudo apt update && sudo apt install -y git python3-tk python3-pil xdotool xserver-xephyr xvfb python3-xlib x11-utils
+sudo apt update && sudo apt install -y git python3-tk python3-pil xdotool xserver-xephyr xvfb python3-xlib x11-utils tesseract-ocr
 ```
 
 What each one is for:
@@ -29,6 +29,7 @@ What each one is for:
 - **xvfb**: a fully invisible hidden screen (a backup option).
 - **python3-xlib**: lets **F3** stop Beeline even when its window isn't the one in front.
 - **x11-utils**: a small tool Beeline uses to check the hidden screen is running.
+- **tesseract-ocr**: a text reader. Beeline uses it to read the pollen numbers ("2,348,365/32,442,211"), the banner under them ("Make Honey" or "Fire the Red Cannon") and the messages in the bottom-right corner ("from Pine Tree Forest"). **Beeline won't start a real run without it**, because it never presses E unless the banner says Make Honey.
 
 ### Step 2. Download Beeline
 
@@ -67,9 +68,11 @@ cd ~/beeline && git pull
 
 Do these yourself in the game (Beeline never opens menus):
 
-1. In the Roblox menu (the Roblox logo, top left, then **Settings**):
+1. In the game, open the Roblox menu: click the **Roblox logo** in the top-left corner (or the **≡** button next to it), then the **Settings** tab. Change:
    - **Camera Mode**: **Classic**
    - **Shift Lock Switch**: **On**
+
+   Close the menu. Now pressing **Shift** once turns **shift lock** on: the mouse pointer disappears, a small lock icon shows, and the camera stays behind your character so walking is predictable. Press Shift again to turn it off. (In your screenshots the pointer was visible, so shift lock was off then. Turn it on before recording routes and before every run.)
 2. Your computer's display scaling should be normal (100%). On Mint: **Menu → Display**, and check **User interface scaling** is **Normal**. (The hidden screen always uses its own fixed size, so this matters less than it does for Windows macros, but it's still best.)
 3. Put your **Supreme Saturator on hotbar slot 2**. Beeline presses **2** exactly once per session to place it.
 
@@ -108,43 +111,23 @@ The macro then walks to the middle of Pine Tree Forest, places your Saturator (o
 
 ---
 
-## Part 3: First-time setup (calibration)
+## Part 3: First-time setup (checking what Beeline sees)
 
-Beeline can't know what your screen looks like, so you show it once. Everything is on the **Setup** tab. The big picture there is a live view of the hidden screen. Coloured boxes show what's been set up so far.
+Beeline already knows what Bee Swarm looks like. It learned the layout from your screenshots: the Honey and Pollen bars at the top, the E box and banner, the hotbar, the notifications in the bottom-right corner, and your neon-cyan Saturator. So there's very little to set up. You mostly just **check** each reading with its **Test it** button on the **Setup** tab. The big picture there is a live view of the hidden screen. The line under it shows the answer, and it updates every second or two.
 
-Do these in order. Press **Save calibration** at the end (and whenever you change something).
+**A. Bag (pollen).** Click **Test it**. It shows the percentage, the numbers it read (e.g. 2,348,365/32,442,211) and what the bar looks like. It always uses current ÷ capacity, so it doesn't matter that your capacity changes in the field or after a Balloon Blessing. If the numbers and the bar ever disagree a lot, Beeline stops rather than guess. *Only if the reading is wrong:* click **Fine-tune: click the bar's two ends**, then click the left end and the right end of the pollen bar in the picture, near its bottom edge.
 
-**A. Bag (pollen) meter**
-1. Stand at your hive with an **empty bag** (just after making honey).
-2. Click **Click its two ends**, then click the **left end** of the bag bar in the picture, then the **right end**. Click near the **bottom edge** of the bar, below the numbers.
-3. Click **Bag is EMPTY now: capture**.
-4. Optional but recommended: later, when your bag is **full**, click **Bag is FULL now: capture**.
-5. Click **Test it**. The line under the picture shows what Beeline reads. Check it roughly matches the game as the bag fills.
+**B. Banner.** On your hive pad, **Test it** should say **'Make Honey'**. At the Red Cannon it says **'Fire the Red Cannon'** (Beeline never presses E there). When everything is converted, it says **'Collect Pollen...'**.
 
-**B. Make Honey E-prompt**
-1. Stand on your hive pad so the E prompt shows.
-2. Click **Drag a box around it**, then drag a snug box around the prompt in the picture.
-3. **Test it**: it should say SEEN on the pad and "not seen" when you step off.
+**C. Converting finished.** Beeline knows converting (bag **and** your hive balloon) is finished when the pollen reads 0 **and** the banner changes to "To Make Honey, Collect Pollen From Flower Fields" (or the corner says the hive balloon gave you a Balloon Blessing). It doesn't look at balloons, because your neighbours' balloons are always on screen. *Optional:* if you want an extra check, drag a small box just in front of **your own** pad where your balloon floats, and capture it there and gone.
 
-**C. Hive balloon**
-1. Click **Drag a box where it floats**, and drag a box around where your hive balloon sits near your hive.
-2. When the balloon **is there**, click **Balloon is THERE: capture**.
-3. When it's **gone** (after it's fully converted), click **Balloon GONE: capture**.
-4. **Test it** shows "present", "gone" or "unknown".
+**D. Supreme Saturator.** In Pine Tree with your Saturator placed, **Test it** should say SEEN and put a red cross on it. *Only if it doesn't:* use **Fine-tune: drag a box around it**.
 
-**D. Supreme Saturator**
-1. In Pine Tree Forest, stand next to your placed Saturator (place it yourself just for this).
-2. Click **Drag a box around it**, and drag a box around its **neon-blue bear head**.
-3. **Test it**: a red cross should appear on the Saturator.
+**E. In Pine Tree Forest?** In the middle of the field, **Test it** should say YES. It checks for blue and white flowers on the ground, plus one of these: the corner messages say "from Pine Tree Forest", pollen is coming in, or your Saturator is in view. At your hive it should say no.
 
-**E. Field ground**
-1. Stand in the **middle of Pine Tree Forest**.
-2. Click **Drag a box over the flowers**, and drag a box over the flowers around your character. Keep away from the bag bar and buttons.
-3. **Test it**: it should say YES in the field and "no" when you're at the hive.
+**Night time:** if the darker night-time colours ever confuse the Saturator check, add a night sample with **Add another sample (e.g. at night)**.
 
-**Night time:** the game gets darker at night, which can confuse steps D and E. If Beeline stops at night saying it isn't in the field, use **Add another sample (e.g. at night)** on steps D and E while it's dark. Beeline then accepts either look.
-
-**Test everything at once** (button at the bottom of the list) shows every reading on one line. It's handy for a final check.
+**Test everything at once** (at the bottom of the list) shows every reading on one line. Press **Save calibration** if you fine-tuned anything.
 
 **F. Click-safe zone** (the green box)
 The mouse is only ever allowed inside this box. The default is already safe: it keeps well away from your inventory on the left, the hotbar at the bottom and the top bar. You can drag a **smaller** box if you like. It can never be made bigger than the allowed area.
@@ -198,9 +181,11 @@ What the stop messages mean:
 
 | Message | What happened | What to do |
 |---|---|---|
-| Setup isn't finished. Still needed: ... | A calibration step is missing | Finish it on the Setup tab and press Save calibration |
+| The text reader (Tesseract) isn't installed | Beeline can't read the banner or numbers | Run `sudo apt install tesseract-ocr`, then start Beeline again |
+| The notifications say I'm gathering in ... Field | The route ended in the wrong field | Re-record the hive -> field route |
 | No recorded route ... for hive slot N | No route for this slot | Record both routes for that slot |
-| Couldn't see the 'Make Honey' E-prompt | You weren't on the hive pad at Start | Stand on the pad, then Start. If you are on it, redo Setup step B |
+| Couldn't see the 'Make Honey' prompt | You weren't on your hive pad at Start (or you were at the cannon) | Stand on your pad so the banner says Make Honey, then Start. Check with Setup step B |
+| Not on my hive pad (the banner doesn't say Make Honey) | The walk home ended somewhere else, e.g. the cannon | E is never pressed there. Re-record the field -> hive route |
 | Route to the field took too long | The walk didn't end up in the field | Usually a speed buff, the camera got turned, or the wrong hive slot. Check the slot, turn the camera back, re-record the route |
 | Walking home took too long | Didn't reach the hive pad | As above, for the field-to-hive route |
 | Bag suddenly emptied in the field | Your character probably died (the bag empties when you die) | Check the game. The Saturator is gone too, so start a new run from your hive |

@@ -270,3 +270,11 @@ To do: remake the practice game to look like these; tests on the real screenshot
   - `converting_done()` = pollen 0 AND (banner "collect" OR feed balloon message). `in_field_check()` = blue ground AND (feed names Pine Tree OR pollen coming in OR Saturator in view), and False if the feed names another field.
 - [x] `tests/test_real_screenshots.py` (17 tests, all pass, also at 1920 wide). Bag within ±3% on all 5, and exact when the OCR reads the numbers. Banner correct on all. Saturator only in 03/04. In Pine Tree only in 03/04. The safe zone (default and the biggest allowed) never overlaps the no-click areas. 06 tests skip until `screenshots/06-hive-after-convert.png` is added.
 - Finding: OCR at 1280×720 misreads digits, so the hidden screen will be **1920×1080**.
+- [x] Main loop now uses the real-game rules:
+  - E is pressed only when the banner reads "Make Honey" (checked right before pressing). A route may press E only when the banner says "Fire the Red Cannon" at that moment, otherwise it stops.
+  - Arrival at the hive = banner "Make Honey" or "Collect Pollen". Converting done = pollen 0 + "Collect Pollen" banner (or the feed's balloon message), seen twice in a row. Neighbours' balloons are ignored.
+  - Field arrival = blue ground and the feed doesn't name another field. While gathering, the feed naming another field twice in a row → stop.
+  - Bag = OCR current ÷ capacity, cross-checked with the bar (bar wins on a gap > 4 points; 3 big disagreements in a row → stop).
+  - Tesseract is required for real runs. The hidden screen is 1920×1080 and drift tolerances are proportional.
+- [x] Practice game redrawn to look like the real game (`beeline/synth_bss.py`): bars with numbers, E box + banner (3 texts), feed, hotbar, menu icons, neighbours' balloons, cyan Saturator with a gold top. Simulated runs use the fake world's "what OCR would read". The end-to-end tests use real Tesseract on it.
+- [x] Setup tab: every step is now "Test it" with the screenshot defaults; fine-tuning is optional. START-HERE updated (Tesseract, camera/shift-lock how-to, new Setup steps, new stop messages).

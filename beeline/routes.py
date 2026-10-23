@@ -117,9 +117,11 @@ class RouteRecorder:
         return self.route
 
 
-def replay(route: Route, inp: SafeInput, check=None, check_every: float = 0.5) -> None:
+def replay(route: Route, inp: SafeInput, check=None, check_every: float = 0.5, before_down=None) -> None:
     """Walk a recorded route.  `check()` is called about every check_every seconds and
-    may raise to stop (e.g. the stuck-screen check).  Keys are always released at the end."""
+    may raise to stop (e.g. the stuck-screen check).  `before_down(key)` is called just before
+    each key goes down and may raise to refuse it (used to only press E at the cannon).
+    Keys are always released at the end."""
     route.validate()
     clock = inp.clock
     t0 = clock.now()
@@ -136,6 +138,8 @@ def replay(route: Route, inp: SafeInput, check=None, check_every: float = 0.5) -
                     break
                 inp.sleep(min(wait, check_every))
             if action == "down":
+                if before_down is not None:
+                    before_down(key)
                 inp.key_down(key)
             else:
                 inp.key_up(key)

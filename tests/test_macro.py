@@ -269,6 +269,28 @@ class DryRunTests(unittest.TestCase):
 
 
 class RealGameRuleTests(unittest.TestCase):
+    def test_route_e_press_refused_unless_banner_says_cannon(self):
+        sim = Sim(minutes=30)
+        r = sim.runner.routes["hive_to_field"]
+        r.events = [[0.0, "down", "d"], [2.0, "down", "e"], [2.1, "up", "e"], [5.0, "up", "d"]]
+        reason = sim.run()
+        self.assertIn("route wanted to press e", reason.lower())
+        self.assertEqual(sim.world.e_presses, 0)
+        self.assertFalse(keys_held_at_end(sim))
+
+    def test_route_e_press_allowed_at_the_cannon(self):
+        sim = Sim(minutes=30)
+        r = sim.runner.routes["hive_to_field"]
+        r.events = [[0.0, "down", "d"], [2.0, "down", "e"], [2.1, "up", "e"], [5.0, "up", "d"]]
+        orig = sim.world.fake_ocr
+        sim.runner.senses.reader.ocr_text = lambda img, kind: (
+            "Fire the Red Cannon" if kind == "banner" and 7 < sim.world.x < 9 else orig(img, kind))
+        sim.settings.run_minutes = 1
+        sim.runner.s.run_minutes = 1
+        reason = sim.run()
+        self.assertTrue(reason.startswith("Finished"), reason)
+        self.assertIn("e", [n for (_, n) in sim.world.keys_log])
+
     def test_no_ocr_stops_before_pressing_anything(self):
         sim = Sim(minutes=30)
         sim.runner.senses.reader.use_ocr = False
