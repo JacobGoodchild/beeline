@@ -150,3 +150,28 @@ class ParsingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipUnless(OCR, "tesseract not installed")
+class PracticeGameScreenTests(unittest.TestCase):
+    """The practice game must read like the real game (so practising is meaningful)."""
+
+    def test_reader_on_practice_screens(self):
+        from beeline import synth_bss as S
+        r = bss.Reader()
+        cases = [
+            (dict(current=2348365, capacity=32442211, banner="make_honey"), 7.2, "make_honey", False, False),
+            (dict(current=2282586, capacity=68036081, gathering_rate=18647, in_field=True, saturator_at=(0.6, 0.5),
+                  feed=["+2 Blueberries (from Pine Tree Forest)"]), 3.4, "", True, False),
+            (dict(current=23776408, capacity=32442211, banner="make_honey", my_balloon=True), 73.3, "make_honey",
+             False, False),
+            (dict(current=0, capacity=42174874, banner="collect"), 0.0, "collect", False, True),
+            (dict(current=5000000, capacity=32442211, banner="stop", my_balloon=True), 15.4, "", False, False),
+        ]
+        for kw, pct, banner, sat, done in cases:
+            img = S.draw(1920, 1080, **kw)
+            b = r.bag(img)
+            self.assertAlmostEqual(b.percent, pct, delta=3, msg=kw)
+            self.assertEqual(r.banner(img), banner, kw)
+            self.assertEqual(r.saturator(img).visible(), sat, kw)
+            self.assertEqual(bss.converting_done(b, r.banner(img), r.feed(img)), done, kw)
