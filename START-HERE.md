@@ -78,13 +78,13 @@ Do these yourself in the game (Beeline never opens menus):
 
 ### Step 5 (optional, recommended). Practise with the pretend game first
 
-Beeline comes with a **pretend game**: a simple stand-in for Bee Swarm with a bag bar, a hive with an E prompt and a balloon, a blue-and-white field and a Saturator. It has nothing to do with Roblox, so you can try every button with **zero risk** to your account. It keeps its own separate settings, so nothing you do here affects the real setup.
+Beeline comes with a **pretend game**, a simple stand-in drawn to look like your Bee Swarm screenshots. It has Honey and Pollen bars with numbers, the E box with "Make Honey", a hive with neighbours' balloons, a blue-and-white field, a cyan Saturator and messages in the corner. It has nothing to do with Roblox, so you can try every button with **zero risk** to your account. It keeps its own separate settings, so nothing you do here affects the real setup.
 
 ```
 cd ~/beeline && python3 beeline.py --practice
 ```
 
-Then follow Parts 2 to 4 below exactly as written, except click **Open the practice game in it** instead of opening Sober. In the pretend game the hive pad is where you start, the field is straight to the right (hold **D** for about 5 seconds), and the way back is to the left (hold **A**). For the Saturator sample (Setup step D), click inside the hidden screen window and press **2** to place the pretend Saturator yourself. During a run, the macro places it on its own.
+Then follow Parts 2 to 4 below exactly as written, except click **Open the practice game in it** instead of opening Sober. In the pretend game the hive pad is where you start, the field is straight to the right (hold **D** for about 5 seconds), and the way back is to the left (hold **A**). To try Setup step D before a run, click inside the hidden screen window and press **2** in the field to place the pretend Saturator. During a run, the macro places it on its own if it isn't there yet.
 
 ---
 
