@@ -73,6 +73,8 @@ Do these yourself in the game (Beeline never opens menus):
    - **Shift Lock Switch**: **On**
 
    Close the menu. Now pressing **Shift** once turns **shift lock** on: the mouse pointer disappears, a small lock icon shows, and the camera stays behind your character so walking is predictable. Press Shift again to turn it off. (In your screenshots the pointer was visible, so shift lock was off then. Turn it on before recording routes and before every run.)
+
+   Beeline still works with shift lock **off**, as long as it's the same as when you recorded your routes. With it **on**, though, the camera can't drift away by accident, so that's the recommended way. Beeline never presses Shift itself unless your recorded route did.
 2. Your computer's display scaling should be normal (100%). On Mint: **Menu → Display**, and check **User interface scaling** is **Normal**. (The hidden screen always uses its own fixed size, so this matters less than it does for Windows macros, but it's still best.)
 3. Put your **Supreme Saturator on hotbar slot 2**. Beeline presses **2** exactly once per session to place it.
 
@@ -91,7 +93,7 @@ Then follow Parts 2 to 4 below exactly as written, except click **Open the pract
 ## Part 2: Every session
 
 1. Start Beeline: `cd ~/beeline && python3 beeline.py`
-2. On the **Main** tab, click **Start hidden screen**. A black window titled "Beeline hidden screen" appears. That's the hidden screen.
+2. On the **Main** tab, click **Start hidden screen**. A black window titled "Beeline hidden screen" appears. That's the hidden screen. It's 1920×1080 (big enough for Beeline to read the numbers clearly), so it may not fit on your monitor. That's fine; you can hide it.
 3. Click **Open Sober in it**. Sober opens inside that window. Log in if Sober asks, then join **Bee Swarm Simulator** yourself, the normal way.
 4. Click **Fit game to hidden screen** so the game fills the window exactly.
 5. In the game: **claim a hive** (follow the red arrow, press E). Note which slot it is: **slot 1 is the hive nearest the cannon, slot 6 the furthest**.
