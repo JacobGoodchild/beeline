@@ -64,9 +64,23 @@ class KeyAllowlistTests(unittest.TestCase):
             backend.key_down("2", token=True)
 
     def test_xdotool_backend_refuses_main_desktop(self):
-        for d in ("", ":0", ":0.0", None):
+        for d in ("", ":0", ":0.0", None, "localhost:0"):
             with self.assertRaises(InputRefused):
                 XdotoolBackend(d)
+
+    def test_xdotool_backend_refuses_the_desktop_beeline_runs_on(self):
+        old = os.environ.get("DISPLAY")
+        try:
+            os.environ["DISPLAY"] = ":1"
+            for d in (":1", ":1.0"):
+                with self.assertRaises(InputRefused):
+                    XdotoolBackend(d)
+            XdotoolBackend(":5")  # the hidden screen is fine
+        finally:
+            if old is None:
+                os.environ.pop("DISPLAY", None)
+            else:
+                os.environ["DISPLAY"] = old
 
     def test_no_code_outside_safety_sends_keys_directly(self):
         """Only safety.py may call backend.key_down/key_up or xdotool key commands."""

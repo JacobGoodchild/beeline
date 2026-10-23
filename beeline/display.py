@@ -13,6 +13,8 @@ import shutil
 import subprocess
 import time
 
+from .safety import is_main_desktop
+
 log = logging.getLogger("beeline.display")
 
 SOBER_APP_ID = "org.vinegarhq.Sober"
@@ -68,8 +70,8 @@ def grab_screenshot(display: str, size: tuple | None = None):
 class HiddenScreen:
     def __init__(self, display: str = ":5", size: tuple = (1280, 720), mode: str = "xephyr",
                  glamor: bool = False) -> None:
-        if display in (":0", ":0.0", ""):
-            raise DisplayError("The hidden screen must not be your main desktop (:0). Use :5.")
+        if is_main_desktop(display):
+            raise DisplayError("The hidden screen must not be your main desktop (%s). Use :5." % display)
         self.display = display
         self.size = tuple(size)
         self.mode = mode  # "xephyr" (a window you can see) or "xvfb" (fully hidden)

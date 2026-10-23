@@ -17,6 +17,7 @@ Rules enforced here (CLAUDE.md section 0a):
 from __future__ import annotations
 
 import logging
+import os
 import subprocess
 import threading
 from dataclasses import dataclass
@@ -170,13 +171,30 @@ class Backend:
         raise NotImplementedError
 
 
+def _display_number(display) -> str:
+    """':5', ':5.0', 'localhost:5' -> '5'."""
+    d = str(display or "").strip()
+    if ":" not in d:
+        return ""
+    return d.rsplit(":", 1)[1].split(".")[0]
+
+
+def is_main_desktop(display) -> bool:
+    """True for Jacob's real desktop: display :0, or whichever display Beeline itself was
+    opened on (some computers use :1 for the desktop)."""
+    num = _display_number(display)
+    if num in ("", "0"):
+        return True
+    return num == _display_number(os.environ.get("DISPLAY", ":0"))
+
+
 class XdotoolBackend(Backend):
     """Sends input to ONE X display (the hidden screen) using xdotool."""
 
     def __init__(self, display: str) -> None:
-        if not display or display in (":0", ":0.0"):
+        if is_main_desktop(display):
             # Never type into Jacob's real desktop.
-            raise InputRefused("refusing to send input to the main desktop display %r" % display)
+            raise InputRefused("refusing to send input to the main desktop display %r" % (display,))
         self.display = display
 
     def _run(self, args: list) -> None:

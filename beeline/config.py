@@ -13,7 +13,7 @@ from dataclasses import asdict, dataclass, field, fields
 from PIL import Image
 
 from . import vision
-from .safety import SafeZone
+from .safety import SafeZone, is_main_desktop
 
 log = logging.getLogger("beeline.config")
 
@@ -61,7 +61,7 @@ class Settings:
             self.field = FIELDS[0]
         if self.screen_mode not in ("xephyr", "xvfb"):
             self.screen_mode = "xephyr"
-        if self.display in (":0", ":0.0", ""):
+        if is_main_desktop(self.display):
             self.display = ":5"
         self.balloon_max_wait_min = max(1.0, min(30.0, float(self.balloon_max_wait_min)))
         self.max_trip_minutes = max(2.0, min(60.0, float(self.max_trip_minutes)))
