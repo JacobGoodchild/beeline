@@ -21,7 +21,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 
-from PIL import Image, ImageOps
+from PIL import Image, ImageChops, ImageOps
 
 # Fractions (x0, y0, x1, y1) of the GAME AREA (the Sober window without its title bar).
 LAYOUT = {
@@ -205,13 +205,25 @@ class Reader:
         if kind == "pollen":
             crop = region(img, self.layout["pollen_text"])
             outs = []
-            for h, mode in ((90, "thr"), (60, "thr"), (120, "thr"), (90, "grey")):
+            for h, mode in ((90, "white"), (90, "thr"), (60, "thr"), (120, "thr"), (90, "grey")):
                 g = _scaled_grey(crop, h)
-                if mode == "thr":  # keep only the white digits
+                if mode == "white":
+                    # keep only pixels that are white in ALL colours: the bright green fill
+                    # (which looks light grey in black-and-white) is dropped
+                    c = crop.convert("RGB").resize(g.size, Image.LANCZOS)
+                    r_, g_, b_ = c.split()
+                    m = ImageChops.darker(ImageChops.darker(r_, g_), b_)
+                    g = m.point(lambda p: 0 if p > 165 else 255)
+                elif mode == "thr":  # keep only the light digits
                     g = g.point(lambda p: 0 if p > 170 else 255)
                 outs.append(tesseract(g, 7, "0123456789,/()+sec"))
                 if parse_pollen(outs[-1]):
-                    return outs[-1]
+                    text = outs[-1]
+                    if mode == "white" and "+" not in text and "sec" not in text:
+                        # the "(+N/sec)" rate text isn't pure white: one more pass to catch it
+                        g2 = _scaled_grey(crop, 90).point(lambda p: 0 if p > 170 else 255)
+                        text += " || " + tesseract(g2, 7, "0123456789,/()+sec")
+                    return text
             return " || ".join(outs)
         if kind == "banner":
             outs = []

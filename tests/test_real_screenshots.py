@@ -62,13 +62,16 @@ class RealScreenshotTests(unittest.TestCase):
             self.assertAlmostEqual(self.reader.bar_percent(img), pct, delta=3, msg="%s @%s" % (name, width))
 
     @unittest.skipUnless(OCR, "tesseract not installed")
-    def test_pollen_numbers_read_exactly_on_most(self):
-        exact = 0
+    def test_pollen_numbers_read_exactly_on_all(self):
         for name, width, img, (pct, *_rest) in self.each():
             b = self.reader.bag(img)
-            if b.current is not None:
-                exact += 1
-        self.assertGreaterEqual(exact, 6)
+            self.assertIsNotNone(b.current, "%s @%s: numbers not read (%s)" % (name, width, b.source))
+            self.assertAlmostEqual(b.percent, pct, delta=0.05, msg=name)
+
+    @unittest.skipUnless(OCR, "tesseract not installed")
+    def test_gathering_rate_text_seen_only_while_gathering(self):
+        for name, width, img, (_p, _b, _s, field) in self.each():
+            self.assertEqual(self.reader.bag(img).gathering, field, "%s @%s" % (name, width))
 
     @unittest.skipUnless(OCR, "tesseract not installed")
     def test_banner_text(self):
