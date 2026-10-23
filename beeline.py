@@ -11,6 +11,11 @@ if "--practice" in sys.argv:
     # and routes (in the "practice" folder), so nothing real is touched.
     os.environ["BEELINE_PRACTICE"] = "1"
 
+if "--check" in sys.argv:
+    from beeline.check import main as check_main
+    check_main(sys.argv[sys.argv.index("--check") + 1:])
+    sys.exit(0)
+
 if "--fake-game" in sys.argv:
     from beeline.fakegame import main as fake_main
     fake_main()

@@ -173,6 +173,16 @@ Please do these in order, with **no speed buffs** active (no Haste, Bear Morph o
 
 Send those to Claude if you want help.
 
+**Check what Beeline reads from a screenshot.** Take a screenshot of the game (on Mint, press **PrtSc**; it's saved in your **Pictures** folder), then paste this, changing the file name:
+
+```
+cd ~/beeline && python3 beeline.py --check ~/Pictures/your-screenshot.png
+```
+
+It prints the bag %, the banner, whether it sees your Saturator, and whether it thinks you're in Pine Tree. Copy that text to Claude. It works on normal desktop screenshots of the Sober window too.
+
+**One screenshot still wanted:** your hive pad just after converting has *completely* finished (pollen 0, banner "To Make Honey, Collect Pollen From Flower Fields"). Save it as `screenshots/06-hive-after-convert.png` in the beeline folder. The tests for it switch on automatically.
+
 **If the game is very slow or jerky in the hidden screen:** tick **Faster graphics** on the Main tab, close Sober, and start the hidden screen again. If the hidden screen then won't start, untick it.
 
 **If "Fit game to hidden screen" can't find Sober:** wait until Sober has fully opened and try again.
