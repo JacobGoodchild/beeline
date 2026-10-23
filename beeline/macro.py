@@ -262,6 +262,9 @@ class Runner:
                  "cannon": "'Fire the Red Cannon' (NOT the hive)"}.get(seen.banner, "not readable"),
                 seen.bag or 0, seen.bag_source, seen.in_field_reason,
                 "visible" if seen.saturator else "not visible")
+            if "disagreed" in seen.bag_source or not seen.banner:
+                self.dry_report += (" - the numbers/banner don't line up with where Beeline reads them: "
+                                    "check 'Interface size' on the Setup tab")
             log.info("[dry run] start check: %s", self.dry_report)
         if not self.senses.at_hive(img):
             self.fail("Couldn't see the 'Make Honey' prompt. Stand on your hive pad, then press Start.")
